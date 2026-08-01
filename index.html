@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>10 Down — Meal & Training Plan</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">10↓</span>
+      <div>
+        <h1>10 Down</h1>
+        <p class="tagline">Low-cholesterol meals + training for runners who lift and stretch</p>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="dashboard">Today</button>
+      <button class="tab-btn" data-tab="meals">Meal Plan</button>
+      <button class="tab-btn" data-tab="exercise">Exercise</button>
+      <button class="tab-btn" data-tab="recipes">Recipes</button>
+      <button class="tab-btn" data-tab="grocery">Grocery List</button>
+      <button class="tab-btn" data-tab="progress">Progress</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- DASHBOARD -->
+    <section class="panel active" id="panel-dashboard">
+      <div class="today-grid">
+        <div class="card today-card" id="todayMealCard"></div>
+        <div class="card today-card" id="todayExerciseCard"></div>
+        <div class="card today-card" id="todayGoalCard"></div>
+      </div>
+      <div class="card tips-card">
+        <h2>Heart-Healthy Guidelines</h2>
+        <div class="tips-grid" id="tipsGrid"></div>
+      </div>
+    </section>
+
+    <!-- MEAL PLAN -->
+    <section class="panel" id="panel-meals">
+      <div class="panel-toolbar">
+        <h2>Weekday Meal Plan <span class="muted">(Mon–Fri — weekends off)</span></h2>
+        <div class="week-switch">
+          <button class="week-btn" data-week="A">Week A</button>
+          <button class="week-btn" data-week="B">Week B</button>
+        </div>
+      </div>
+      <p class="week-title" id="weekTitle"></p>
+      <div class="days-grid" id="mealsGrid"></div>
+    </section>
+
+    <!-- EXERCISE -->
+    <section class="panel" id="panel-exercise">
+      <h2>Weekly Training <span class="muted">(runs all 7 days — Sat/Sun are lighter)</span></h2>
+      <div class="days-grid" id="exerciseGrid"></div>
+    </section>
+
+    <!-- RECIPES -->
+    <section class="panel" id="panel-recipes">
+      <h2>Dinner Recipes <span class="muted">(seasonal — late summer)</span></h2>
+      <div class="recipes-list" id="recipesList"></div>
+    </section>
+
+    <!-- GROCERY LIST -->
+    <section class="panel" id="panel-grocery">
+      <div class="panel-toolbar">
+        <h2>Grocery List</h2>
+        <div class="week-switch">
+          <button class="week-btn" data-gweek="A">Week A</button>
+          <button class="week-btn" data-gweek="B">Week B</button>
+        </div>
+      </div>
+      <p class="muted">Checked items are saved automatically. Uncheck "Clear checked" to start fresh.</p>
+      <button class="ghost-btn" id="clearChecked">Clear checked items</button>
+      <div id="groceryList" class="grocery-list"></div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section class="panel" id="panel-progress">
+      <h2>Weight Progress</h2>
+      <div class="progress-setup card" id="progressSetup">
+        <label>Starting weight (lbs)
+          <input type="number" id="startWeight" min="1" step="0.1" placeholder="e.g. 165" />
+        </label>
+        <button id="setStartBtn">Set starting weight</button>
+      </div>
+      <div class="progress-body" id="progressBody" style="display:none;">
+        <div class="card">
+          <div class="goal-header">
+            <div>
+              <div class="goal-num" id="goalCurrent">—</div>
+              <div class="muted">current</div>
+            </div>
+            <div class="goal-arrow">→</div>
+            <div>
+              <div class="goal-num" id="goalTarget">—</div>
+              <div class="muted">goal (−10 lbs)</div>
+            </div>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+          <p class="muted" id="progressPct"></p>
+        </div>
+
+        <div class="card">
+          <h3>Log a weigh-in</h3>
+          <form id="logForm" class="log-form">
+            <input type="date" id="logDate" required />
+            <input type="number" id="logWeight" min="1" step="0.1" placeholder="Weight (lbs)" required />
+            <button type="submit">Add entry</button>
+          </form>
+          <canvas id="progressChart" width="600" height="180"></canvas>
+          <table class="log-table" id="logTable">
+            <thead><tr><th>Date</th><th>Weight</th><th>Change</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <button class="ghost-btn" id="resetTracker">Reset tracker</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Not medical advice — check with your doctor or a dietitian before making major diet or exercise changes, especially around cholesterol management.</p>
+  </footer>
+
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
