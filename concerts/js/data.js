@@ -35,7 +35,7 @@ const CONCERTS = [
     source: "Etix purchase (Order #457149596)",
   },
   {
-    artist: "Bonnie “Prince” Billy (Night 1)",
+    artist: "Bonnie \u201cPrince\u201d Billy (Night 1)",
     date: "2027-01-30T20:00:00-08:00",
     venue: "Aladdin Theater",
     address: "3017 Southeast Milwaukie Avenue, Portland, OR",

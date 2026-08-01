@@ -44,9 +44,14 @@ body {
 }
 
 .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
   padding: 32px 0 20px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .brand {
@@ -72,6 +77,108 @@ body {
   font-size: 14px;
 }
 
+.add-toggle {
+  flex: 0 0 auto;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.add-toggle:hover {
+  background: var(--accent-soft);
+}
+
+.add-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  margin-bottom: 28px;
+}
+
+.add-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.add-form-row-split {
+  flex-direction: row;
+  gap: 14px;
+}
+
+.add-form-row-split label {
+  flex: 1 1 0;
+}
+
+.add-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.add-form .optional {
+  font-weight: 400;
+  text-transform: none;
+}
+
+.add-form input {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.add-form input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.add-form-hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.add-form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.add-submit {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.add-cancel {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
 .month-group {
   margin-bottom: 32px;
 }
@@ -92,6 +199,7 @@ body {
 }
 
 .concert-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 16px;
@@ -100,6 +208,28 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 16px 18px;
+}
+
+.concert-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.concert-remove:hover {
+  color: var(--badge-text);
+  border-color: var(--badge-text);
 }
 
 .concert-date {

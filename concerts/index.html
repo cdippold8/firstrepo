@@ -17,12 +17,44 @@
         <p class="tagline" id="summary">Loading&hellip;</p>
       </div>
     </div>
+    <button type="button" class="add-toggle" id="addToggle">+ Add concert</button>
   </header>
+
+  <form class="add-form" id="addForm" hidden>
+    <div class="add-form-row">
+      <label>Artist / show
+        <input type="text" id="fieldArtist" required placeholder="e.g. Japanese Breakfast" />
+      </label>
+    </div>
+    <div class="add-form-row add-form-row-split">
+      <label>Date
+        <input type="date" id="fieldDate" required />
+      </label>
+      <label>Time
+        <input type="time" id="fieldTime" required />
+      </label>
+    </div>
+    <div class="add-form-row">
+      <label>Venue
+        <input type="text" id="fieldVenue" required placeholder="e.g. Roseland Theater" />
+      </label>
+    </div>
+    <div class="add-form-row">
+      <label>Address <span class="optional">(optional)</span>
+        <input type="text" id="fieldAddress" placeholder="e.g. 8 Northwest 6th Avenue, Portland, OR" />
+      </label>
+    </div>
+    <p class="add-form-hint">Times are entered in Pacific time (the time zone all the venues above are in).</p>
+    <div class="add-form-actions">
+      <button type="submit" class="add-submit">Add to list</button>
+      <button type="button" class="add-cancel" id="addCancel">Cancel</button>
+    </div>
+  </form>
 
   <main id="app"></main>
 
   <footer class="page-footer">
-    <p>Built from confirmed ticket purchases (Etix order confirmations) and calendar invites found in Gmail &amp; Google Calendar. Marketing emails and onsale alerts aren't included. See <code>README.md</code> for how to refresh this list.</p>
+    <p>Built from confirmed ticket purchases (Etix order confirmations) and calendar invites found in Gmail &amp; Google Calendar, plus anything added manually above. Marketing emails and onsale alerts aren't included. See <code>README.md</code> for how to refresh this list.</p>
   </footer>
 
 </div>
