@@ -25,3 +25,7 @@ then visit `http://localhost:8000`.
 
 - The plan is general guidance, not medical advice — check with a doctor or dietitian before making major diet or exercise changes, especially around cholesterol management.
 - Data (weigh-ins, checked grocery items, selected week) lives only in your browser's local storage. Clearing browser data will reset it.
+
+## Other apps in this repo
+
+- **[Upcoming Concerts](concerts/)** — shows your confirmed upcoming concerts (from purchased tickets and calendar invites), organized by month.
