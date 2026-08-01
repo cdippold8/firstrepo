@@ -77,6 +77,12 @@ body {
   font-size: 14px;
 }
 
+.header-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 10px;
+}
+
 .add-toggle {
   flex: 0 0 auto;
   border: 1px solid var(--accent);
@@ -177,6 +183,75 @@ body {
   padding: 9px 16px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.add-form .optional a {
+  color: var(--accent);
+}
+
+.search-row {
+  flex-direction: row;
+  gap: 10px;
+}
+
+.search-row input {
+  flex: 1 1 auto;
+}
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-status {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.search-status-error {
+  color: var(--badge-text);
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.search-result-name {
+  font-weight: 650;
+  font-size: 14px;
+}
+
+.search-result-meta {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.search-add-btn {
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-add-btn:disabled {
+  background: var(--border);
+  color: var(--muted);
+  cursor: default;
 }
 
 .month-group {

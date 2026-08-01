@@ -1,16 +1,17 @@
 (function () {
-  const TIME_ZONE = "America/Los_Angeles"; // all venues are in the Pacific time zone
-  const STORAGE_KEY = "concerts.manual.v1";
+  const DEFAULT_TIME_ZONE = "America/Los_Angeles"; // used for baked-in data and the manual-add form
+  const MANUAL_STORAGE_KEY = "concerts.manual.v1";
+  const TM_KEY_STORAGE_KEY = "concerts.tmApiKey.v1";
   const MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
   ];
 
-  // Extracts the venue-local (Pacific) date/time parts, independent of the
-  // viewer's own browser timezone.
-  function pacificParts(d) {
+  // Extracts a date's local date/time parts in a given IANA time zone,
+  // independent of the viewer's own browser timezone.
+  function zonedParts(d, timeZone) {
     const dtf = new Intl.DateTimeFormat("en-US", {
-      timeZone: TIME_ZONE,
+      timeZone,
       year: "numeric",
       month: "numeric",
       day: "numeric",
@@ -31,15 +32,12 @@
     };
   }
 
-  // Converts a "wall clock" date + time, entered as Pacific local time, into
+  // Converts a "wall clock" date + time, entered in the given time zone, into
   // the correct absolute instant (as an ISO string), regardless of the
-  // viewer's own timezone or the current Pacific UTC offset (PDT vs PST).
-  function pacificWallTimeToISOString(year, month, day, hour, minute) {
+  // viewer's own timezone or that zone's current UTC offset (DST vs not).
+  function wallTimeToISOString(year, month, day, hour, minute, timeZone) {
     const guessUTC = Date.UTC(year, month, day, hour, minute);
-    const dtf = new Intl.DateTimeFormat("en-US", {
-      timeZone: TIME_ZONE,
-      timeZoneName: "longOffset",
-    });
+    const dtf = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" });
     const offsetLabel = dtf.formatToParts(new Date(guessUTC)).find((p) => p.type === "timeZoneName").value;
     const match = offsetLabel.match(/GMT([+-])(\d{2}):?(\d{2})?/);
     const sign = match[1] === "-" ? -1 : 1;
@@ -52,8 +50,7 @@
     return `${p.hour}${minuteStr} ${p.dayPeriod}`;
   }
 
-  // Days between two Pacific calendar dates (ignoring time-of-day), used for
-  // "days until" — computed against "today" in Pacific time as well.
+  // Days between two same-zone calendar dates (ignoring time-of-day).
   function daysBetween(a, b) {
     const utcA = Date.UTC(a.year, a.month, a.day);
     const utcB = Date.UTC(b.year, b.month, b.day);
@@ -77,7 +74,7 @@
 
   function loadManualConcerts() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(MANUAL_STORAGE_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
       return [];
@@ -85,22 +82,48 @@
   }
 
   function saveManualConcerts(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    localStorage.setItem(MANUAL_STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function addManualConcert(concert) {
+    const list = loadManualConcerts();
+    list.push(concert);
+    saveManualConcerts(list);
   }
 
   function removeManualConcert(id) {
-    const list = loadManualConcerts().filter((c) => c.id !== id);
-    saveManualConcerts(list);
+    saveManualConcerts(loadManualConcerts().filter((c) => c.id !== id));
     render();
   }
 
+  function loadApiKey() {
+    return localStorage.getItem(TM_KEY_STORAGE_KEY) || "";
+  }
+
+  function saveApiKey(key) {
+    if (key) localStorage.setItem(TM_KEY_STORAGE_KEY, key);
+    else localStorage.removeItem(TM_KEY_STORAGE_KEY);
+  }
+
+  // A rough "already on the list" key so re-adding the same search result
+  // twice doesn't create a duplicate card.
+  function dedupeKey(c) {
+    return `${c.date}|${c.venue}`.toLowerCase();
+  }
+
   function render() {
-    const nowParts = pacificParts(new Date());
-    const allConcerts = [...CONCERTS, ...loadManualConcerts()];
+    const manual = loadManualConcerts();
+    const allConcerts = [...CONCERTS, ...manual];
+    const nowPartsDefault = zonedParts(new Date(), DEFAULT_TIME_ZONE);
 
     const upcoming = allConcerts
-      .map((c) => ({ ...c, parts: pacificParts(new Date(c.date)) }))
-      .filter((c) => daysBetween(c.parts, nowParts) >= 0)
+      .map((c) => {
+        const timeZone = c.timeZone || DEFAULT_TIME_ZONE;
+        const parts = zonedParts(new Date(c.date), timeZone);
+        const nowParts = zonedParts(new Date(), timeZone);
+        return { ...c, timeZone, parts, days: daysBetween(parts, nowParts) };
+      })
+      .filter((c) => c.days >= 0)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const root = document.getElementById("app");
@@ -130,7 +153,7 @@
 
       const heading = document.createElement("h2");
       heading.className = "month-heading";
-      const isCurrentMonth = year === nowParts.year && month === nowParts.month;
+      const isCurrentMonth = year === nowPartsDefault.year && month === nowPartsDefault.month;
       heading.textContent = `${MONTH_NAMES[month]} ${year}${isCurrentMonth ? " — this month" : ""}`;
       section.appendChild(heading);
 
@@ -141,8 +164,7 @@
         const card = document.createElement("article");
         card.className = "concert-card";
 
-        const days = daysBetween(c.parts, nowParts);
-        const badge = daysUntilLabel(days);
+        const badge = daysUntilLabel(c.days);
         const isManual = Boolean(c.id);
 
         card.innerHTML = `
@@ -183,14 +205,14 @@
 
     toggle.addEventListener("click", () => {
       form.hidden = !form.hidden;
-      toggle.textContent = form.hidden ? "+ Add concert" : "Cancel";
+      toggle.textContent = form.hidden ? "+ Add manually" : "Cancel";
       if (!form.hidden) document.getElementById("fieldArtist").focus();
     });
 
     cancel.addEventListener("click", () => {
       form.reset();
       form.hidden = true;
-      toggle.textContent = "+ Add concert";
+      toggle.textContent = "+ Add manually";
     });
 
     form.addEventListener("submit", (e) => {
@@ -207,26 +229,165 @@
       const [year, month, day] = dateVal.split("-").map(Number);
       const [hour, minute] = timeVal.split(":").map(Number);
 
-      const concert = {
+      addManualConcert({
         id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         artist,
-        date: pacificWallTimeToISOString(year, month - 1, day, hour, minute),
+        date: wallTimeToISOString(year, month - 1, day, hour, minute, DEFAULT_TIME_ZONE),
         venue,
         address,
+        timeZone: DEFAULT_TIME_ZONE,
         source: "Added manually",
-      };
-
-      const list = loadManualConcerts();
-      list.push(concert);
-      saveManualConcerts(list);
+      });
 
       form.reset();
       form.hidden = true;
-      toggle.textContent = "+ Add concert";
+      toggle.textContent = "+ Add manually";
       render();
     });
   }
 
+  // --- Ticketmaster Discovery API search -----------------------------------
+  // Free API key: https://developer.ticketmaster.com/products-and-docs/apis/getting-started/
+  // Runs entirely in the browser — nothing is sent anywhere but Ticketmaster.
+
+  function existingKeys() {
+    return new Set([...CONCERTS, ...loadManualConcerts()].map(dedupeKey));
+  }
+
+  function parseSearchResult(event) {
+    const venue = event._embedded && event._embedded.venues && event._embedded.venues[0];
+    const city = venue && venue.city ? venue.city.name : "";
+    const state = venue && venue.state ? venue.state.stateCode : "";
+    const line1 = venue && venue.address ? venue.address.line1 : "";
+    const address = [line1, [city, state].filter(Boolean).join(", ")].filter(Boolean).join(", ");
+    const timeZone = (event.dates && event.dates.timezone) || DEFAULT_TIME_ZONE;
+    const localDate = event.dates && event.dates.start && event.dates.start.localDate;
+    const localTime = event.dates && event.dates.start && event.dates.start.localTime;
+
+    return {
+      name: event.name,
+      venueName: venue ? venue.name : "Venue TBA",
+      address,
+      timeZone,
+      localDate: localDate || null,
+      localTime: localTime || null,
+      url: event.url || "",
+    };
+  }
+
+  function renderSearchResults(container, events) {
+    if (events.length === 0) {
+      container.innerHTML = '<p class="search-status">No shows found for that search.</p>';
+      return;
+    }
+
+    const already = existingKeys();
+    container.innerHTML = "";
+
+    for (const rawEvent of events) {
+      const r = parseSearchResult(rawEvent);
+      if (!r.localDate) continue; // skip events with no date announced yet
+
+      const [y, m, d] = r.localDate.split("-").map(Number);
+      const hasTime = Boolean(r.localTime);
+      const [hh, mm] = hasTime ? r.localTime.split(":").map(Number) : [19, 0];
+      const isoDate = wallTimeToISOString(y, m - 1, d, hh, mm, r.timeZone);
+
+      const candidate = { date: isoDate, venue: r.venueName };
+      const alreadyAdded = already.has(dedupeKey(candidate));
+
+      const row = document.createElement("div");
+      row.className = "search-result";
+      row.innerHTML = `
+        <div class="search-result-info">
+          <div class="search-result-name">${escapeHtml(r.name)}</div>
+          <div class="search-result-meta">${escapeHtml(r.localDate)}${hasTime ? ` &middot; ${escapeHtml(r.localTime.slice(0, 5))}` : " &middot; time TBA"} &middot; ${escapeHtml(r.venueName)}${r.address ? ` &mdash; ${escapeHtml(r.address)}` : ""}</div>
+        </div>
+        <button type="button" class="search-add-btn" ${alreadyAdded ? "disabled" : ""}>${alreadyAdded ? "Added" : "+ Add"}</button>
+      `;
+
+      const btn = row.querySelector(".search-add-btn");
+      if (!alreadyAdded) {
+        btn.addEventListener("click", () => {
+          addManualConcert({
+            id: `search-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            artist: r.name,
+            date: isoDate,
+            venue: r.venueName,
+            address: r.address,
+            timeZone: r.timeZone,
+            source: hasTime ? "Found via Ticketmaster search" : "Found via Ticketmaster search (time TBA)",
+          });
+          btn.textContent = "Added";
+          btn.disabled = true;
+          render();
+        });
+      }
+
+      container.appendChild(row);
+    }
+  }
+
+  async function runSearch(query, container) {
+    const key = loadApiKey();
+    if (!key) {
+      container.innerHTML = '<p class="search-status">Add your free Ticketmaster API key above first.</p>';
+      return;
+    }
+    if (!query) return;
+
+    container.innerHTML = '<p class="search-status">Searching&hellip;</p>';
+
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=12&sort=date,asc&keyword=${encodeURIComponent(query)}&apikey=${encodeURIComponent(key)}`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        const msg =
+          res.status === 401 || res.status === 403
+            ? "That API key was rejected — double-check you copied it correctly."
+            : `Ticketmaster returned an error (status ${res.status}).`;
+        container.innerHTML = `<p class="search-status search-status-error">${escapeHtml(msg)}</p>`;
+        return;
+      }
+      const data = await res.json();
+      const events = (data._embedded && data._embedded.events) || [];
+      renderSearchResults(container, events);
+    } catch (err) {
+      container.innerHTML =
+        '<p class="search-status search-status-error">Couldn&rsquo;t reach Ticketmaster. Your browser or network may be blocking the request — try again in a moment.</p>';
+    }
+  }
+
+  function setupSearch() {
+    const toggle = document.getElementById("searchToggle");
+    const panel = document.getElementById("searchPanel");
+    const keyInput = document.getElementById("tmApiKey");
+    const queryInput = document.getElementById("searchQuery");
+    const searchBtn = document.getElementById("searchBtn");
+    const results = document.getElementById("searchResults");
+
+    keyInput.value = loadApiKey();
+
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.textContent = panel.hidden ? "Search shows" : "Cancel";
+      if (!panel.hidden) (loadApiKey() ? queryInput : keyInput).focus();
+    });
+
+    keyInput.addEventListener("change", () => saveApiKey(keyInput.value.trim()));
+
+    const doSearch = () => runSearch(queryInput.value.trim(), results);
+    searchBtn.addEventListener("click", doSearch);
+    queryInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        doSearch();
+      }
+    });
+  }
+
   setupAddForm();
+  setupSearch();
   render();
 })();

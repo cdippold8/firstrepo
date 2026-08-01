@@ -17,8 +17,24 @@
         <p class="tagline" id="summary">Loading&hellip;</p>
       </div>
     </div>
-    <button type="button" class="add-toggle" id="addToggle">+ Add concert</button>
+    <div class="header-actions">
+      <button type="button" class="add-toggle" id="searchToggle">Search shows</button>
+      <button type="button" class="add-toggle" id="addToggle">+ Add manually</button>
+    </div>
   </header>
+
+  <div class="add-form" id="searchPanel" hidden>
+    <div class="add-form-row">
+      <label>Ticketmaster API key <span class="optional">(free — <a href="https://developer.ticketmaster.com/products-and-docs/apis/getting-started/" target="_blank" rel="noopener">get one here</a>, saved in this browser only)</span>
+        <input type="password" id="tmApiKey" placeholder="Paste your Consumer Key" autocomplete="off" />
+      </label>
+    </div>
+    <div class="add-form-row search-row">
+      <input type="text" id="searchQuery" placeholder="Search artist or show, e.g. Japanese Breakfast" />
+      <button type="button" class="add-submit" id="searchBtn">Search</button>
+    </div>
+    <div id="searchResults" class="search-results"></div>
+  </div>
 
   <form class="add-form" id="addForm" hidden>
     <div class="add-form-row">
@@ -54,7 +70,7 @@
   <main id="app"></main>
 
   <footer class="page-footer">
-    <p>Built from confirmed ticket purchases (Etix order confirmations) and calendar invites found in Gmail &amp; Google Calendar, plus anything added manually above. Marketing emails and onsale alerts aren't included. See <code>README.md</code> for how to refresh this list.</p>
+    <p>Built from confirmed ticket purchases (Etix order confirmations) and calendar invites found in Gmail &amp; Google Calendar, plus anything found via search or added manually above. Marketing emails and onsale alerts aren't included. See <code>README.md</code> for how to refresh this list.</p>
   </footer>
 
 </div>

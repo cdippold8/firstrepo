@@ -21,15 +21,32 @@ This app doesn't call the Gmail/Calendar APIs directly from the browser (that wo
 
 Sports, theater, comedy, and non-music events were excluded, as were past shows and events you were only ever *offered* tickets to.
 
+### Searching for a show
+
+Click **Search shows** at the top of the page. This searches the [Ticketmaster Discovery API](https://developer.ticketmaster.com/products-and-docs/apis/getting-started/) directly from your browser — it works regardless of whether you actually have a ticket, unlike the Gmail/Calendar-sourced list below it.
+
+You'll need a free Ticketmaster API key:
+
+1. Go to <https://developer.ticketmaster.com/products-and-docs/apis/getting-started/> and sign up (free).
+2. Copy your **Consumer Key**.
+3. Paste it into the "Ticketmaster API key" field in the app. It's saved in `localStorage` in that browser only — it's never sent anywhere except to Ticketmaster.
+
+Search results show name, date, time, and venue, each with a **+ Add** button. Adding one saves it the same way as a manual entry (see below), including its own correct time zone (a show search finds isn't necessarily in Pacific time the way the venues Claude found in your Gmail are).
+
+**This only works when the app is actually reaching the internet from your browser** — running it locally (as above) or hosting it somewhere with normal outbound network access (e.g. GitHub Pages) works fine. It will *not* work on a Claude-hosted artifact link, since those run in a sandbox that blocks requests to arbitrary external sites. If you want a shareable hosted link where search actually works, ask Claude to enable GitHub Pages for this repo.
+
+One more honest caveat: this was built and tested with a mocked Ticketmaster response, since the sandbox Claude builds in can't reach the real Ticketmaster API either. If searching throws a network error against the *real* API, tell Claude — it's most likely a CORS restriction on Ticketmaster's end, which would need a small proxy to work around.
+
 ### Adding a concert manually
 
-Click **+ Add concert** at the top of the page and fill in the artist, date, time, venue, and (optionally) address. Enter the time as Pacific time — that's the time zone all the venues above are in. Manually added concerts are saved in your browser's `localStorage`, mixed in with the rest of the list, and show an **×** button so you can remove them. They only live in the browser you added them from — they aren't written back to `js/data.js` and won't show up if you open the app on another device.
+Click **+ Add manually** at the top of the page and fill in the artist, date, time, venue, and (optionally) address. Enter the time as Pacific time — that's the time zone all the venues Claude found are in. Manually added and searched-and-added concerts are both saved in your browser's `localStorage`, mixed in with the rest of the list, and show an **×** button so you can remove them. They only live in the browser you added them from — they aren't written back to `js/data.js` and won't show up if you open the app on another device.
 
 ### Refreshing the list after buying a ticket
 
-Two ways, depending on how much you want Claude involved:
+Three ways, depending on how much you want Claude involved:
 
-1. **Fast — add it yourself.** Use the **+ Add concert** form above. Good for one-offs, but it's local to that browser (see above).
-2. **Durable — ask Claude to add it.** Tell Claude what you bought (or just say "rescan my Gmail for new concert tickets"), and ask it to add the entry to `concerts/js/data.js` and commit the change. This is the version that persists in the repo and shows up everywhere, including in a freshly republished artifact link.
+1. **Fastest — search for it.** Use **Search shows** above (needs a Ticketmaster API key, see above).
+2. **Fast, no API key — add it yourself.** Use **+ Add manually** above.
+3. **Durable — ask Claude to add it.** Tell Claude what you bought (or just say "rescan my Gmail for new concert tickets"), and ask it to add the entry to `concerts/js/data.js` and commit the change. This is the only version that persists in the repo and shows up everywhere, including in a freshly republished artifact link — options 1 and 2 are both local to one browser.
 
-If you're using the hosted artifact link Claude gave you rather than running this repo yourself, the **+ Add concert** button works the same way there — it's the same page, just published as a standalone file. Baked-in concerts (the ones Claude found in Gmail/Calendar) can only be removed by asking Claude to edit `js/data.js`, since they're not stored in `localStorage`.
+If you're using the hosted artifact link Claude gave you rather than running this repo yourself, **+ Add manually** works the same way there — it's the same page, just published as a standalone file. **Search shows** does not work there (see above). Baked-in concerts (the ones Claude found in Gmail/Calendar) can only be removed by asking Claude to edit `js/data.js`, since they're not stored in `localStorage`.
