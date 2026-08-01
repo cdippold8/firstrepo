@@ -191,11 +191,21 @@ body {
 
 .search-row {
   flex-direction: row;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .search-row input {
-  flex: 1 1 auto;
+  flex: 1 1 160px;
+}
+
+.search-row #searchCity {
+  flex: 1 1 120px;
+  max-width: 220px;
+}
+
+.search-row .add-submit {
+  flex: 0 0 auto;
 }
 
 .search-results {

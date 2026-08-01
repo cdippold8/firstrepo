@@ -97,12 +97,21 @@
   }
 
   function loadApiKey() {
-    return localStorage.getItem(TM_KEY_STORAGE_KEY) || "";
+    try {
+      return localStorage.getItem(TM_KEY_STORAGE_KEY) || "";
+    } catch (e) {
+      return "";
+    }
   }
 
   function saveApiKey(key) {
-    if (key) localStorage.setItem(TM_KEY_STORAGE_KEY, key);
-    else localStorage.removeItem(TM_KEY_STORAGE_KEY);
+    try {
+      if (key) localStorage.setItem(TM_KEY_STORAGE_KEY, key);
+      else localStorage.removeItem(TM_KEY_STORAGE_KEY);
+    } catch (e) {
+      // localStorage unavailable (private browsing, storage disabled, etc.) —
+      // the key just won't persist between visits.
+    }
   }
 
   // A rough "already on the list" key so re-adding the same search result
@@ -328,17 +337,19 @@
     }
   }
 
-  async function runSearch(query, container) {
+  async function runSearch(query, city, container) {
     const key = loadApiKey();
     if (!key) {
       container.innerHTML = '<p class="search-status">Add your free Ticketmaster API key above first.</p>';
       return;
     }
-    if (!query) return;
+    if (!query && !city) return;
 
     container.innerHTML = '<p class="search-status">Searching&hellip;</p>';
 
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=12&sort=date,asc&keyword=${encodeURIComponent(query)}&apikey=${encodeURIComponent(key)}`;
+    let url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=12&sort=date,asc&apikey=${encodeURIComponent(key)}`;
+    if (query) url += `&keyword=${encodeURIComponent(query)}`;
+    if (city) url += `&city=${encodeURIComponent(city)}`;
 
     try {
       const res = await fetch(url);
@@ -364,6 +375,7 @@
     const panel = document.getElementById("searchPanel");
     const keyInput = document.getElementById("tmApiKey");
     const queryInput = document.getElementById("searchQuery");
+    const cityInput = document.getElementById("searchCity");
     const searchBtn = document.getElementById("searchBtn");
     const results = document.getElementById("searchResults");
 
@@ -375,16 +387,20 @@
       if (!panel.hidden) (loadApiKey() ? queryInput : keyInput).focus();
     });
 
-    keyInput.addEventListener("change", () => saveApiKey(keyInput.value.trim()));
+    // Save on every keystroke (not just on blur) so the key is never lost —
+    // e.g. if the user pastes it and immediately hits Enter to search.
+    keyInput.addEventListener("input", () => saveApiKey(keyInput.value.trim()));
 
-    const doSearch = () => runSearch(queryInput.value.trim(), results);
+    const doSearch = () => runSearch(queryInput.value.trim(), cityInput.value.trim(), results);
     searchBtn.addEventListener("click", doSearch);
-    queryInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        doSearch();
-      }
-    });
+    for (const input of [queryInput, cityInput]) {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          doSearch();
+        }
+      });
+    }
   }
 
   setupAddForm();

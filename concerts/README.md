@@ -31,7 +31,9 @@ You'll need a free Ticketmaster API key:
 2. Copy your **Consumer Key**.
 3. Paste it into the "Ticketmaster API key" field in the app. It's saved in `localStorage` in that browser only — it's never sent anywhere except to Ticketmaster.
 
-Search results show name, date, time, and venue, each with a **+ Add** button. Adding one saves it the same way as a manual entry (see below), including its own correct time zone (a show search finds isn't necessarily in Pacific time the way the venues Claude found in your Gmail are).
+Search by artist/show name, city, or both — city-only (e.g. just "Portland") returns whatever music events Ticketmaster has there. Results show name, date, time, and venue, each with a **+ Add** button. Adding one saves it the same way as a manual entry (see below), including its own correct time zone (a show search finds isn't necessarily in Pacific time the way the venues Claude found in your Gmail are).
+
+Your API key is saved as you type — no need to click away from the field first — so once entered it should still be there next time you open the app in that browser.
 
 **This only works when the app is actually reaching the internet from your browser** — running it locally (as above) or hosting it somewhere with normal outbound network access (e.g. GitHub Pages) works fine. It will *not* work on a Claude-hosted artifact link, since those run in a sandbox that blocks requests to arbitrary external sites. If you want a shareable hosted link where search actually works, ask Claude to enable GitHub Pages for this repo.
 
