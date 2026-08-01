@@ -110,13 +110,14 @@ const RECIPES = {
     ],
   },
   scampi: {
-    name: "Zucchini Noodle Shrimp Scampi",
+    name: "Shrimp Scampi with Whole-Wheat Linguine & Zucchini",
     servings: "2 servings",
-    seasonal: "Zucchini noodles keep it light and garden-fresh",
+    seasonal: "Garden zucchini, diced small — no spiralizer needed",
     cholesterolTip: "Shrimp is low in saturated fat; light on butter, heavy on olive oil and garlic keeps it heart-friendly.",
     ingredients: [
+      "6 oz whole-wheat linguine",
       "1 lb large shrimp, peeled & deveined",
-      "3 medium zucchini, spiralized",
+      "2 medium zucchini, diced or cut into half-moons",
       "3 cloves garlic, minced",
       "2 tbsp olive oil + 1 tsp butter (for flavor, not the base fat)",
       "1/4 cup low-sodium chicken broth",
@@ -125,11 +126,11 @@ const RECIPES = {
       "Fresh parsley, chopped",
     ],
     steps: [
-      "Pat shrimp dry, season with salt and pepper.",
-      "Heat olive oil in a large skillet over medium-high; sear shrimp 1–2 min per side. Remove and set aside.",
-      "Add garlic and red pepper flakes to the skillet, cook 30 sec. Add broth and lemon juice, simmer 1 min.",
-      "Add zucchini noodles, toss 1–2 min just to warm through (don't overcook). Stir in butter, return shrimp to pan.",
-      "Top with parsley and serve immediately.",
+      "Cook linguine according to package directions; drain, reserving 1/4 cup pasta water.",
+      "Pat shrimp dry, season with salt and pepper. Heat olive oil in a large skillet over medium-high; sear shrimp 1–2 min per side. Remove and set aside.",
+      "Add zucchini to the same skillet, sauté 3–4 min until just tender. Add garlic and red pepper flakes, cook 30 sec.",
+      "Add broth, lemon juice, and reserved pasta water; simmer 1 min. Stir in butter, return shrimp to the pan.",
+      "Toss with the cooked linguine, top with parsley, and serve immediately.",
     ],
   },
   grilledChicken: {
@@ -236,7 +237,7 @@ const WEEKS = {
         breakfast: { name: "Steel-cut oats with flax & berries", kcal: 340, ingredients: ["1/2 cup steel-cut oats", "1 tbsp ground flaxseed", "Cinnamon", "Mixed berries"], note: "Cook oats, stir in flax and cinnamon, top with berries." },
         snackAm: { name: "Orange + small handful walnuts", kcal: 170, ingredients: ["1 orange", "8–10 walnut halves"] },
         lunch: { name: "Turkey & white bean soup (make-ahead friendly)", kcal: 380, ingredients: ["Ground turkey", "White beans", "Carrots, celery, onion", "Low-sodium broth", "Fresh thyme"] },
-        snackPm: { name: "Low-fat cottage cheese with cherry tomatoes", kcal: 160, ingredients: ["1/2 cup low-fat cottage cheese", "Cherry tomatoes", "Cracked pepper"] },
+        snackPm: { name: "Crunchy roasted chickpeas with cherry tomatoes", kcal: 160, ingredients: ["1/2 cup roasted chickpeas, lightly salted", "Cherry tomatoes", "Cracked pepper"] },
         dinner: { name: RECIPES.bulkChili.name, kcal: 480, recipeId: "bulkChili", bulk: true, bulkNote: "Cook the full batch tonight — repeats Thursday." },
       },
       Wednesday: {
