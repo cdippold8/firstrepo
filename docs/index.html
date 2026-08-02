@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sketchbook — Learn to Draw</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">✏️</span>
+      <div>
+        <h1>Sketchbook</h1>
+        <p class="tagline">Learn the basics of sketching with short, themed pencil &amp; ink lessons from YouTube</p>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="path">Path</button>
+      <button class="tab-btn" data-tab="lessons">Lessons</button>
+      <button class="tab-btn" data-tab="supplies">Supplies</button>
+      <button class="tab-btn" data-tab="progress">Progress</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- PATH (home) -->
+    <section class="panel active" id="panel-path">
+      <div class="card path-intro">
+        <h2>Your learning path</h2>
+        <p class="muted">Eight short lessons, in order, take you from a blank page to sketching a real object. Each lesson pairs two YouTube tutorials — pencil unless marked <span class="medium-badge medium-ink">ink</span> — kept under <strong id="maxMinutesLabel">15</strong> minutes so you can fit one in on a break.</p>
+        <div class="path-overall">
+          <div class="progress-bar-track"><div class="progress-bar-fill" id="pathProgressFill"></div></div>
+          <p class="muted" id="pathProgressLabel"></p>
+        </div>
+        <button class="primary-btn" id="continueBtn">Start Lesson 1</button>
+      </div>
+      <div class="roadmap" id="roadmap"></div>
+    </section>
+
+    <!-- LESSONS -->
+    <section class="panel" id="panel-lessons">
+
+      <div class="lessons-grid-view" id="lessonsGridView">
+        <div class="panel-toolbar">
+          <h2>All Lessons</h2>
+          <div class="filter-switch" id="mediumFilter">
+            <button class="filter-btn active" data-medium="all">All</button>
+            <button class="filter-btn" data-medium="pencil">Pencil</button>
+            <button class="filter-btn" data-medium="ink">Ink</button>
+          </div>
+        </div>
+        <div class="lessons-grid" id="lessonsGrid"></div>
+      </div>
+
+      <div class="lesson-detail-view" id="lessonDetailView" style="display:none;">
+        <button class="ghost-btn back-btn" id="backToLessons">&larr; All Lessons</button>
+        <div id="lessonDetailContent"></div>
+      </div>
+
+    </section>
+
+    <!-- SUPPLIES -->
+    <section class="panel" id="panel-supplies">
+      <h2>What You'll Need</h2>
+      <p class="muted">Nothing fancy — this whole course can be done with a handful of cheap supplies. Pick pencil, ink, or both.</p>
+      <div class="supplies-grid">
+        <div class="card supplies-card">
+          <h3>✏️ Pencil sketching</h3>
+          <ul>
+            <li>An HB or 2B pencil (a 2H–6B set is nice for shading, but not required)</li>
+            <li>Any smooth printer or sketch paper</li>
+            <li>A soft eraser (kneaded erasers are great for lightening tone)</li>
+            <li>Optional: a blending stump or a rolled bit of tissue</li>
+          </ul>
+        </div>
+        <div class="card supplies-card">
+          <h3>🖋️ Ink sketching</h3>
+          <ul>
+            <li>A fineliner pen (e.g. 0.3–0.5mm) — easiest way to start</li>
+            <li>Optional: a dip pen and bottled ink for a more traditional feel</li>
+            <li>Smooth, reasonably heavy paper so ink doesn't bleed through</li>
+            <li>No eraser needed — ink mistakes become part of learning to commit to a line</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <h3>How to use this course</h3>
+        <p class="muted">Work through the <strong>Path</strong> tab in order — each lesson builds on the last. Watch both short videos, then spend a few minutes on the practice prompt before moving on. There's no rush; a lesson a day is plenty.</p>
+      </div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section class="panel" id="panel-progress">
+      <div class="panel-toolbar">
+        <h2>Your Progress</h2>
+        <button class="ghost-btn" id="resetProgress">Reset progress</button>
+      </div>
+      <div class="card">
+        <div class="goal-header">
+          <div>
+            <div class="goal-num" id="progressCount">0</div>
+            <div class="muted">lessons complete</div>
+          </div>
+          <div class="goal-arrow">of</div>
+          <div>
+            <div class="goal-num" id="progressTotal">8</div>
+            <div class="muted">total</div>
+          </div>
+        </div>
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+      </div>
+      <div class="progress-list" id="progressList"></div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Video titles, creators, and runtimes are fetched live from YouTube in your browser, so they always reflect the real thing — not a static guess.</p>
+  </footer>
+
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
