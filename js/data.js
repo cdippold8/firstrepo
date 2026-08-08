@@ -220,6 +220,16 @@ const RECIPES = {
   },
 };
 
+/* ---------------------------- STANDING FRIDAY DINNER ---------------------------- */
+/* Your regular taco-stand order — small tacos on corn tortillas, not the
+   cheese/rice/sour-cream-loaded burritos. Edit here to change it for both weeks. */
+
+const FRIDAY_TACO_NIGHT = {
+  name: "Taco Stand Night — 1 Veggie, 1 Tofu, 2 Fish & 1 Chicken Taco",
+  kcal: 650,
+  bulkNote: "Standing order: 5 small tacos on corn tortillas, rice & beans on the side, hold the cheese/sour cream.",
+};
+
 /* ---------------------------- WEEKDAY MEAL PLANS ---------------------------- */
 
 const WEEKS = {
@@ -259,7 +269,7 @@ const WEEKS = {
         snackAm: { name: "Banana with peanut butter", kcal: 200, ingredients: ["1 banana", "1 tbsp peanut butter"] },
         lunch: { name: "Tuna & white bean salad on greens", kcal: 380, ingredients: ["Olive-oil-packed tuna", "White beans", "Mixed greens", "Lemon-olive oil dressing"] },
         snackPm: { name: "Bell pepper strips with guacamole", kcal: 150, ingredients: ["Bell pepper", "3 tbsp guacamole"] },
-        dinner: { name: RECIPES.grilledChicken.name, kcal: 480, recipeId: "grilledChicken" },
+        dinner: FRIDAY_TACO_NIGHT,
       },
     },
   },
@@ -299,7 +309,7 @@ const WEEKS = {
         snackAm: { name: "Orange", kcal: 80, ingredients: ["1 orange"] },
         lunch: { name: "Salmon salad on greens", kcal: 400, ingredients: ["Canned wild salmon", "Celery", "Light olive-oil mayo", "Mixed greens"] },
         snackPm: { name: "Air-popped popcorn (plain)", kcal: 110, ingredients: ["3 cups air-popped popcorn"] },
-        dinner: { name: RECIPES.shrimpTacos.name, kcal: 460, recipeId: "shrimpTacos" },
+        dinner: FRIDAY_TACO_NIGHT,
       },
     },
   },
