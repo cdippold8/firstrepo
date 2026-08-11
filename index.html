@@ -2,139 +2,101 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>10 Down — Meal & Training Plan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0f14" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Interval Run</title>
 <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 <div id="app">
 
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-mark">10↓</span>
-      <div>
-        <h1>10 Down</h1>
-        <p class="tagline">Low-cholesterol meals + training for runners who lift and stretch</p>
+  <!-- SETUP SCREEN -->
+  <section class="screen active" id="screen-setup">
+    <header class="screen-header">
+      <h1>Interval Run</h1>
+      <p class="subtitle">Build your run, then hit start.</p>
+    </header>
+
+    <main class="setup-body">
+
+      <div class="card">
+        <h2 class="card-title">Warm up &amp; cool down</h2>
+        <div class="field-row">
+          <label class="field">
+            <span>Warm up (min)</span>
+            <input type="number" id="warmupMin" min="0" step="1" inputmode="numeric" value="5" />
+          </label>
+          <label class="field">
+            <span>Cool down (min)</span>
+            <input type="number" id="cooldownMin" min="0" step="1" inputmode="numeric" value="5" />
+          </label>
+        </div>
       </div>
+
+      <div class="card">
+        <div class="card-title-row">
+          <h2 class="card-title">Intervals</h2>
+          <button type="button" class="ghost-btn small" id="addBlockBtn">+ Add interval</button>
+        </div>
+        <p class="muted small-text">Each interval repeats: every X min, work for X min.</p>
+        <div id="blocksList" class="blocks-list"></div>
+      </div>
+
+      <div class="card summary-card">
+        <h2 class="card-title">Summary</h2>
+        <div id="summaryBody" class="summary-body"></div>
+      </div>
+
+    </main>
+
+    <footer class="setup-footer">
+      <button type="button" class="primary-btn" id="startBtn">Start Run</button>
+    </footer>
+  </section>
+
+  <!-- RUNNING / TIME TRACKING SCREEN -->
+  <section class="screen" id="screen-run">
+    <div class="run-top">
+      <button type="button" class="icon-btn" id="stopBtn" aria-label="Stop run">✕</button>
+      <div class="run-progress-track">
+        <div class="run-progress-fill" id="overallProgressFill"></div>
+      </div>
+      <div class="run-elapsed" id="elapsedTime">0:00</div>
     </div>
-    <nav class="tabs" id="tabs">
-      <button class="tab-btn active" data-tab="dashboard">Today</button>
-      <button class="tab-btn" data-tab="meals">Meal Plan</button>
-      <button class="tab-btn" data-tab="exercise">Exercise</button>
-      <button class="tab-btn" data-tab="recipes">Recipes</button>
-      <button class="tab-btn" data-tab="grocery">Grocery List</button>
-      <button class="tab-btn" data-tab="progress">Progress</button>
-    </nav>
-  </header>
 
-  <main>
+    <main class="run-body">
+      <div class="phase-pill" id="phasePill">Warm Up</div>
+      <div class="run-clock" id="runClock">00:00</div>
+      <div class="run-meta" id="runMeta"></div>
+      <div class="next-up" id="nextUp"></div>
+    </main>
 
-    <!-- DASHBOARD -->
-    <section class="panel active" id="panel-dashboard">
-      <div class="today-grid">
-        <div class="card today-card" id="todayMealCard"></div>
-        <div class="card today-card" id="todayExerciseCard"></div>
-        <div class="card today-card" id="todayGoalCard"></div>
-      </div>
-      <div class="card tips-card">
-        <h2>Heart-Healthy Guidelines</h2>
-        <div class="tips-grid" id="tipsGrid"></div>
-      </div>
-    </section>
+    <footer class="run-controls">
+      <button type="button" class="control-btn" id="skipBtn">Skip ▶</button>
+      <button type="button" class="control-btn primary" id="pauseBtn">Pause</button>
+    </footer>
+  </section>
 
-    <!-- MEAL PLAN -->
-    <section class="panel" id="panel-meals">
-      <div class="panel-toolbar">
-        <h2>Weekday Meal Plan <span class="muted">(Mon–Fri — weekends off)</span></h2>
-        <div class="week-switch">
-          <button class="week-btn" data-week="A">Week A</button>
-          <button class="week-btn" data-week="B">Week B</button>
-        </div>
-      </div>
-      <p class="week-title" id="weekTitle"></p>
-      <div class="days-grid" id="mealsGrid"></div>
-    </section>
+  <!-- DONE SCREEN -->
+  <section class="screen" id="screen-done">
+    <main class="done-body">
+      <div class="done-check">✓</div>
+      <h1>Run complete</h1>
+      <p class="subtitle" id="doneSubtitle"></p>
 
-    <!-- EXERCISE -->
-    <section class="panel" id="panel-exercise">
-      <h2>Weekly Training <span class="muted">(runs all 7 days — Sat/Sun are lighter)</span></h2>
-      <div class="days-grid" id="exerciseGrid"></div>
-    </section>
+      <div class="card done-stats" id="doneStats"></div>
+    </main>
 
-    <!-- RECIPES -->
-    <section class="panel" id="panel-recipes">
-      <h2>Dinner Recipes <span class="muted">(seasonal — late summer)</span></h2>
-      <div class="recipes-list" id="recipesList"></div>
-    </section>
-
-    <!-- GROCERY LIST -->
-    <section class="panel" id="panel-grocery">
-      <div class="panel-toolbar">
-        <h2>Grocery List</h2>
-        <div class="week-switch">
-          <button class="week-btn" data-gweek="A">Week A</button>
-          <button class="week-btn" data-gweek="B">Week B</button>
-        </div>
-      </div>
-      <p class="muted">Checked items are saved automatically. Uncheck "Clear checked" to start fresh.</p>
-      <button class="ghost-btn" id="clearChecked">Clear checked items</button>
-      <div id="groceryList" class="grocery-list"></div>
-    </section>
-
-    <!-- PROGRESS -->
-    <section class="panel" id="panel-progress">
-      <h2>Weight Progress</h2>
-      <div class="progress-setup card" id="progressSetup">
-        <label>Starting weight (lbs)
-          <input type="number" id="startWeight" min="1" step="0.1" placeholder="e.g. 165" />
-        </label>
-        <button id="setStartBtn">Set starting weight</button>
-      </div>
-      <div class="progress-body" id="progressBody" style="display:none;">
-        <div class="card">
-          <div class="goal-header">
-            <div>
-              <div class="goal-num" id="goalCurrent">—</div>
-              <div class="muted">current</div>
-            </div>
-            <div class="goal-arrow">→</div>
-            <div>
-              <div class="goal-num" id="goalTarget">—</div>
-              <div class="muted">goal (−10 lbs)</div>
-            </div>
-          </div>
-          <div class="progress-bar-track">
-            <div class="progress-bar-fill" id="progressFill"></div>
-          </div>
-          <p class="muted" id="progressPct"></p>
-        </div>
-
-        <div class="card">
-          <h3>Log a weigh-in</h3>
-          <form id="logForm" class="log-form">
-            <input type="date" id="logDate" required />
-            <input type="number" id="logWeight" min="1" step="0.1" placeholder="Weight (lbs)" required />
-            <button type="submit">Add entry</button>
-          </form>
-          <canvas id="progressChart" width="600" height="180"></canvas>
-          <table class="log-table" id="logTable">
-            <thead><tr><th>Date</th><th>Weight</th><th>Change</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <button class="ghost-btn" id="resetTracker">Reset tracker</button>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <footer class="app-footer">
-    <p>Not medical advice — check with your doctor or a dietitian before making major diet or exercise changes, especially around cholesterol management.</p>
-  </footer>
+    <footer class="setup-footer">
+      <button type="button" class="primary-btn" id="newRunBtn">Start Another Run</button>
+    </footer>
+  </section>
 
 </div>
 
-<script src="js/data.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

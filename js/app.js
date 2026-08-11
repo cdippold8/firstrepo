@@ -1,466 +1,597 @@
-/* ------------------------------------------------------------------
-   App logic: tabs, dashboard, meal plan, exercise, recipes,
-   grocery list, and a localStorage-backed weight tracker.
------------------------------------------------------------------- */
+(function () {
+  "use strict";
 
-const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  var STORAGE_KEY = "intervalRun.config.v1";
 
-const state = {
-  selectedWeek: localStorage.getItem("wl_selectedWeek") || "A",
-};
-
-/* ---------------------------- TABS ---------------------------- */
-
-function initTabs() {
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-  });
-}
-
-function switchTab(tab) {
-  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `panel-${tab}`));
-}
-
-/* ---------------------------- WEEK SELECTION ---------------------------- */
-
-function setWeek(weekKey) {
-  state.selectedWeek = weekKey;
-  localStorage.setItem("wl_selectedWeek", weekKey);
-  document.querySelectorAll(".week-btn").forEach((b) => {
-    const key = b.dataset.week || b.dataset.gweek;
-    b.classList.toggle("active", key === weekKey);
-  });
-  renderMealPlan();
-  renderGroceryList();
-  renderDashboard();
-}
-
-function initWeekSwitch() {
-  document.querySelectorAll("[data-week]").forEach((b) => b.addEventListener("click", () => setWeek(b.dataset.week)));
-  document.querySelectorAll("[data-gweek]").forEach((b) => b.addEventListener("click", () => setWeek(b.dataset.gweek)));
-  setWeek(state.selectedWeek);
-}
-
-/* ---------------------------- DASHBOARD ---------------------------- */
-
-function renderDashboard() {
-  const today = new Date();
-  const dayName = DAY_ORDER[(today.getDay() + 6) % 7]; // Mon-first index
-  const isWeekday = WEEKDAYS.includes(dayName);
-  const week = WEEKS[state.selectedWeek];
-
-  const mealCard = document.getElementById("todayMealCard");
-  if (isWeekday) {
-    const day = week.days[dayName];
-    mealCard.innerHTML = `
-      <div class="kicker">${dayName} · ${week.title}</div>
-      <h3>Today's Meals</h3>
-      ${["breakfast", "snackAm", "lunch", "snackPm", "dinner"].map((k) => mealRowHtml(k, day[k])).join("")}
-    `;
-  } else {
-    mealCard.innerHTML = `
-      <div class="kicker">${dayName}</div>
-      <h3>Off the meal plan</h3>
-      <p class="muted">Weekends are unstructured — eat sensibly, keep portions in check, and go easy on saturated fat and fried food. No prep required today.</p>
-    `;
-  }
-
-  const exCard = document.getElementById("todayExerciseCard");
-  const ex = EXERCISE[dayName];
-  exCard.innerHTML = `
-    <div class="kicker">Training</div>
-    <h3>${ex.title} <span class="exercise-type" style="margin-left:6px;">${ex.type}</span></h3>
-    <p class="muted">${ex.duration}</p>
-    <ul>${ex.details.map((d) => `<li>${d}</li>`).join("")}</ul>
-    ${ex.note ? `<p class="muted">${ex.note}</p>` : ""}
-  `;
-
-  document.getElementById("todayGoalCard").innerHTML = goalCardHtml();
-}
-
-function mealRowHtml(key, meal) {
-  if (!meal) return "";
-  const labels = { breakfast: "Breakfast", snackAm: "AM Snack", lunch: "Lunch", snackPm: "PM Snack", dinner: "Dinner" };
-  const bulk = meal.bulk ? `<span class="bulk-flag">BULK</span>` : "";
-  return `
-    <div class="meal-row">
-      <div class="meal-label">${labels[key]}</div>
-      <div class="meal-name">${meal.name}${bulk}</div>
-    </div>
-  `;
-}
-
-function goalCardHtml() {
-  const t = getTracker();
-  if (!t.start) {
-    return `
-      <div class="kicker">Goal</div>
-      <h3>Lose 10 lbs</h3>
-      <p class="muted">Set a starting weight on the Progress tab to start tracking.</p>
-    `;
-  }
-  const current = latestWeight(t);
-  const lost = round1(t.start - current);
-  const pct = clamp(((t.start - current) / GOAL.targetLossLbs) * 100, 0, 100);
-  return `
-    <div class="kicker">Goal</div>
-    <h3>${lost >= 0 ? lost : 0} of 10 lbs down</h3>
-    <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-    <p class="muted">${current} lbs current · ${round1(t.start - GOAL.targetLossLbs)} lbs goal</p>
-  `;
-}
-
-/* ---------------------------- MEAL PLAN ---------------------------- */
-
-function renderMealPlan() {
-  const week = WEEKS[state.selectedWeek];
-  document.getElementById("weekTitle").textContent = week.title;
-  const grid = document.getElementById("mealsGrid");
-  grid.innerHTML = WEEKDAYS.map((day) => {
-    const d = week.days[day];
-    return `
-      <div class="day-card">
-        <h3>${day}</h3>
-        ${["breakfast", "snackAm", "lunch", "snackPm", "dinner"].map((k) => mealCardRow(k, d[k])).join("")}
-      </div>
-    `;
-  }).join("");
-
-  grid.querySelectorAll(".recipe-link").forEach((btn) => {
-    btn.addEventListener("click", () => goToRecipe(btn.dataset.recipe));
-  });
-}
-
-function mealCardRow(key, meal) {
-  if (!meal) return "";
-  const labels = { breakfast: "Breakfast", snackAm: "AM Snack", lunch: "Lunch", snackPm: "PM Snack", dinner: "Dinner" };
-  const bulk = meal.bulk ? `<span class="bulk-flag">BULK</span>` : "";
-  const link = meal.recipeId ? `<br/><button class="recipe-link" data-recipe="${meal.recipeId}">View recipe →</button>` : "";
-  const bulkNote = meal.bulkNote ? `<div class="muted" style="font-size:0.78rem;margin-top:2px;">${meal.bulkNote}</div>` : "";
-  return `
-    <div class="meal-row">
-      <div class="meal-label">${labels[key]}</div>
-      <div class="meal-name">${meal.name}${bulk}</div>
-      <div class="meal-kcal">${meal.kcal ? meal.kcal + " kcal" : ""}</div>
-      ${bulkNote}${link}
-    </div>
-  `;
-}
-
-function goToRecipe(recipeId) {
-  switchTab("recipes");
-  requestAnimationFrame(() => {
-    const el = document.getElementById(`recipe-${recipeId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-      el.classList.add("highlight");
-      setTimeout(() => el.classList.remove("highlight"), 1500);
-    }
-  });
-}
-
-/* ---------------------------- EXERCISE ---------------------------- */
-
-function renderExercise() {
-  const grid = document.getElementById("exerciseGrid");
-  grid.innerHTML = DAY_ORDER.map((day) => {
-    const ex = EXERCISE[day];
-    return `
-      <div class="exercise-card ${ex.optional ? "optional" : ""}">
-        <span class="exercise-type">${ex.type}</span>
-        <h3>${day} · ${ex.title}</h3>
-        <p class="muted">${ex.duration}</p>
-        <ul>${ex.details.map((d) => `<li>${d}</li>`).join("")}</ul>
-        ${ex.note ? `<p class="exercise-note">${ex.note}</p>` : ""}
-      </div>
-    `;
-  }).join("");
-}
-
-/* ---------------------------- RECIPES ---------------------------- */
-
-function renderRecipes() {
-  const list = document.getElementById("recipesList");
-  list.innerHTML = Object.entries(RECIPES).map(([id, r]) => `
-    <div class="recipe-card" id="recipe-${id}">
-      <h3>${r.name}</h3>
-      <div class="recipe-meta">${r.servings} · ${r.seasonal}</div>
-      <div class="recipe-columns">
-        <div>
-          <h4>Ingredients</h4>
-          <ul>${r.ingredients.map((i) => `<li>${i}</li>`).join("")}</ul>
-        </div>
-        <div>
-          <h4>Steps</h4>
-          <ol>${r.steps.map((s) => `<li>${s}</li>`).join("")}</ol>
-        </div>
-      </div>
-      <div class="recipe-tip">💡 ${r.cholesterolTip}</div>
-    </div>
-  `).join("");
-}
-
-/* ---------------------------- HEART-HEALTHY TIPS ---------------------------- */
-
-function renderTips() {
-  document.getElementById("tipsGrid").innerHTML = CHOLESTEROL_TIPS.map((t) => `
-    <div class="tip"><strong>${t.title}</strong><span>${t.body}</span></div>
-  `).join("");
-}
-
-/* ---------------------------- GROCERY LIST ---------------------------- */
-
-const CATEGORIES = [
-  { name: "Produce", keywords: ["zucchini", "corn", "pepper", "tomato", "onion", "garlic", "lemon", "avocado", "spinach", "carrot", "celery", "cucumber", "peach", "berries", "blueberr", "banana", "apple", "orange", "watermelon", "cabbage", "lime", "basil", "parsley", "cilantro", "green bean", "sweet potato", "mushroom", "portobello", "eggplant", "kale"] },
-  { name: "Meat & Seafood", keywords: ["turkey", "chicken", "salmon", "shrimp", "cod", "tuna"] },
-  { name: "Eggs & Dairy", keywords: ["egg", "yogurt", "cheese", "feta", "mozzarella", "cottage cheese", "milk", "butter"] },
-  { name: "Grains & Bread", keywords: ["oat", "quinoa", "farro", "rice", "pasta", "tortilla", "bread", "toast"] },
-  { name: "Pantry & Pulses", keywords: ["olive oil", "vinegar", "broth", "beans", "chickpea", "lentil", "hummus", "chili powder", "cumin", "paprika", "honey", "almond butter", "peanut butter", "walnut", "almond", "flaxseed", "chia", "popcorn", "seasoning", "herbs", "oregano", "thyme", "dill"] },
-];
-
-function categorize(item) {
-  const lower = item.toLowerCase();
-  for (const cat of CATEGORIES) {
-    if (cat.keywords.some((kw) => lower.includes(kw))) return cat.name;
-  }
-  return "Other";
-}
-
-function buildGroceryList(weekKey) {
-  const week = WEEKS[weekKey];
-  const seenRecipes = new Set();
-  const items = new Map();
-  const addItem = (text) => {
-    const key = text.trim().toLowerCase();
-    if (!items.has(key)) items.set(key, text.trim());
+  var screens = {
+    setup: document.getElementById("screen-setup"),
+    run: document.getElementById("screen-run"),
+    done: document.getElementById("screen-done"),
   };
 
-  Object.values(week.days).forEach((day) => {
-    ["breakfast", "snackAm", "lunch", "snackPm"].forEach((mk) => {
-      if (day[mk] && day[mk].ingredients) day[mk].ingredients.forEach(addItem);
+  function showScreen(name) {
+    Object.keys(screens).forEach(function (key) {
+      screens[key].classList.toggle("active", key === name);
     });
-    const dinner = day.dinner;
-    if (dinner && dinner.recipeId) {
-      if (!seenRecipes.has(dinner.recipeId)) {
-        seenRecipes.add(dinner.recipeId);
-        RECIPES[dinner.recipeId].ingredients.forEach(addItem);
+  }
+
+  // ---------- Setup state ----------
+
+  var warmupInput = document.getElementById("warmupMin");
+  var cooldownInput = document.getElementById("cooldownMin");
+  var blocksList = document.getElementById("blocksList");
+  var addBlockBtn = document.getElementById("addBlockBtn");
+  var summaryBody = document.getElementById("summaryBody");
+  var startBtn = document.getElementById("startBtn");
+
+  var blockIdCounter = 0;
+
+  function defaultConfig() {
+    return {
+      warmupMin: 5,
+      cooldownMin: 5,
+      blocks: [{ id: ++blockIdCounter, everyMin: 3, forMin: 1, rounds: 6 }],
+    };
+  }
+
+  var config = loadConfig() || defaultConfig();
+  if (config.blocks && config.blocks.length) {
+    blockIdCounter = Math.max.apply(
+      null,
+      config.blocks.map(function (b) {
+        return b.id;
+      })
+    );
+  }
+
+  function loadConfig() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.blocks)) return null;
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveConfig() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function renderBlocks() {
+    blocksList.innerHTML = "";
+    config.blocks.forEach(function (block, index) {
+      blocksList.appendChild(renderBlockRow(block, index));
+    });
+    if (config.blocks.length === 0) {
+      var empty = document.createElement("p");
+      empty.className = "muted small-text";
+      empty.textContent = "No intervals yet — add one, or just do a straight warm up + cool down run.";
+      blocksList.appendChild(empty);
+    }
+  }
+
+  function renderBlockRow(block, index) {
+    var row = document.createElement("div");
+    row.className = "block-row";
+
+    var top = document.createElement("div");
+    top.className = "block-row-top";
+    var label = document.createElement("span");
+    label.className = "block-label";
+    label.textContent = "Interval " + (index + 1);
+    top.appendChild(label);
+
+    if (config.blocks.length > 1) {
+      var removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "block-remove";
+      removeBtn.setAttribute("aria-label", "Remove interval " + (index + 1));
+      removeBtn.textContent = "✕";
+      removeBtn.addEventListener("click", function () {
+        config.blocks = config.blocks.filter(function (b) {
+          return b.id !== block.id;
+        });
+        renderBlocks();
+        renderSummary();
+        saveConfig();
+      });
+      top.appendChild(removeBtn);
+    }
+    row.appendChild(top);
+
+    var fields = document.createElement("div");
+    fields.className = "block-fields";
+
+    fields.appendChild(
+      makeNumberField("Every (min)", block.everyMin, 0.5, function (val) {
+        block.everyMin = val;
+        renderBlockSentence(row, block);
+        renderSummary();
+        saveConfig();
+      })
+    );
+    fields.appendChild(
+      makeNumberField("For (min)", block.forMin, 0.5, function (val) {
+        block.forMin = val;
+        renderBlockSentence(row, block);
+        renderSummary();
+        saveConfig();
+      })
+    );
+    fields.appendChild(
+      makeNumberField("Rounds", block.rounds, 1, function (val) {
+        block.rounds = Math.max(1, Math.round(val));
+        renderBlockSentence(row, block);
+        renderSummary();
+        saveConfig();
+      })
+    );
+
+    row.appendChild(fields);
+
+    var sentence = document.createElement("p");
+    sentence.className = "block-sentence";
+    row.appendChild(sentence);
+    renderBlockSentence(row, block);
+
+    return row;
+  }
+
+  function renderBlockSentence(row, block) {
+    var sentence = row.querySelector(".block-sentence");
+    var rest = Math.max(0, block.everyMin - block.forMin);
+    var text =
+      "Every " +
+      formatMin(block.everyMin) +
+      ", work for " +
+      formatMin(block.forMin) +
+      (rest > 0 ? " (rest " + formatMin(rest) + ")" : " (no rest — back to back)") +
+      ", x " +
+      block.rounds +
+      " rounds";
+    sentence.textContent = text;
+  }
+
+  function formatMin(m) {
+    return m === 1 ? "1 min" : m + " min";
+  }
+
+  function makeNumberField(labelText, value, step, onChange) {
+    var field = document.createElement("label");
+    field.className = "field";
+    var span = document.createElement("span");
+    span.textContent = labelText;
+    var input = document.createElement("input");
+    input.type = "number";
+    input.min = step >= 1 ? "1" : "0.5";
+    input.step = String(step);
+    input.inputMode = "decimal";
+    input.value = String(value);
+    field.appendChild(span);
+    field.appendChild(input);
+
+    input.addEventListener("input", function () {
+      var val = parseFloat(input.value);
+      if (isNaN(val) || val < 0) return;
+      onChange(val);
+    });
+
+    return field;
+  }
+
+  addBlockBtn.addEventListener("click", function () {
+    config.blocks.push({ id: ++blockIdCounter, everyMin: 3, forMin: 1, rounds: 6 });
+    renderBlocks();
+    renderSummary();
+    saveConfig();
+  });
+
+  warmupInput.addEventListener("input", function () {
+    var val = parseFloat(warmupInput.value);
+    config.warmupMin = isNaN(val) || val < 0 ? 0 : val;
+    renderSummary();
+    saveConfig();
+  });
+  cooldownInput.addEventListener("input", function () {
+    var val = parseFloat(cooldownInput.value);
+    config.cooldownMin = isNaN(val) || val < 0 ? 0 : val;
+    renderSummary();
+    saveConfig();
+  });
+
+  function renderSummary() {
+    var timeline = buildTimeline(config);
+    var totalSec = timeline.reduce(function (sum, p) {
+      return sum + p.duration;
+    }, 0);
+
+    var rows = [];
+    if (config.warmupMin > 0) {
+      rows.push(["Warm up", formatMin(config.warmupMin)]);
+    }
+    config.blocks.forEach(function (block, i) {
+      var rest = Math.max(0, block.everyMin - block.forMin);
+      rows.push([
+        "Interval " + (i + 1),
+        block.rounds + " x (" + formatMin(block.forMin) + (rest > 0 ? " work / " + formatMin(rest) + " rest" : " work") + ")",
+      ]);
+    });
+    if (config.cooldownMin > 0) {
+      rows.push(["Cool down", formatMin(config.cooldownMin)]);
+    }
+
+    summaryBody.innerHTML = "";
+    rows.forEach(function (r) {
+      var div = document.createElement("div");
+      div.className = "summary-row";
+      div.innerHTML = "<span>" + r[0] + "</span><span>" + r[1] + "</span>";
+      summaryBody.appendChild(div);
+    });
+    var totalDiv = document.createElement("div");
+    totalDiv.className = "summary-row total";
+    totalDiv.innerHTML = "<span>Total time</span><span>" + formatClock(totalSec, true) + "</span>";
+    summaryBody.appendChild(totalDiv);
+
+    startBtn.disabled = totalSec <= 0;
+  }
+
+  // ---------- Timeline construction ----------
+
+  function buildTimeline(cfg) {
+    var timeline = [];
+    if (cfg.warmupMin > 0) {
+      timeline.push({ type: "warmup", label: "Warm Up", duration: Math.round(cfg.warmupMin * 60) });
+    }
+    cfg.blocks.forEach(function (block, blockIndex) {
+      var rest = Math.max(0, block.everyMin - block.forMin);
+      for (var r = 1; r <= block.rounds; r++) {
+        timeline.push({
+          type: "work",
+          label: "Work",
+          duration: Math.round(block.forMin * 60),
+          blockIndex: blockIndex,
+          round: r,
+          totalRounds: block.rounds,
+        });
+        var isLastRoundOfLastBlock = blockIndex === cfg.blocks.length - 1 && r === block.rounds;
+        if (rest > 0 && !isLastRoundOfLastBlock) {
+          timeline.push({
+            type: "rest",
+            label: "Rest",
+            duration: Math.round(rest * 60),
+            blockIndex: blockIndex,
+            round: r,
+            totalRounds: block.rounds,
+          });
+        }
       }
+    });
+    if (cfg.cooldownMin > 0) {
+      timeline.push({ type: "cooldown", label: "Cool Down", duration: Math.round(cfg.cooldownMin * 60) });
+    }
+    return timeline.filter(function (p) {
+      return p.duration > 0;
+    });
+  }
+
+  function formatClock(totalSeconds, longForm) {
+    totalSeconds = Math.max(0, Math.round(totalSeconds));
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.floor((totalSeconds % 3600) / 60);
+    var s = totalSeconds % 60;
+    if (longForm) {
+      if (h > 0) return h + "h " + m + "m";
+      if (m > 0) return m + "m " + (s > 0 ? s + "s" : "");
+      return s + "s";
+    }
+    if (h > 0) {
+      return h + ":" + pad(m) + ":" + pad(s);
+    }
+    return m + ":" + pad(s);
+  }
+
+  function pad(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  // ---------- Run screen ----------
+
+  var phasePill = document.getElementById("phasePill");
+  var runClock = document.getElementById("runClock");
+  var runMeta = document.getElementById("runMeta");
+  var nextUp = document.getElementById("nextUp");
+  var runBody = document.querySelector(".run-body");
+  var elapsedTimeEl = document.getElementById("elapsedTime");
+  var overallProgressFill = document.getElementById("overallProgressFill");
+  var pauseBtn = document.getElementById("pauseBtn");
+  var skipBtn = document.getElementById("skipBtn");
+  var stopBtn = document.getElementById("stopBtn");
+
+  var runState = null;
+  var tickHandle = null;
+  var wakeLock = null;
+
+  function startWorkout() {
+    var timeline = buildTimeline(config);
+    if (timeline.length === 0) return;
+
+    runState = {
+      timeline: timeline,
+      index: 0,
+      remaining: timeline[0].duration,
+      totalDuration: timeline.reduce(function (s, p) { return s + p.duration; }, 0),
+      elapsed: 0,
+      paused: false,
+      startedAt: Date.now(),
+    };
+
+    requestWakeLock();
+    showScreen("run");
+    updatePhaseUI();
+    pauseBtn.textContent = "Pause";
+    playCue("start");
+    startTicking();
+  }
+
+  function startTicking() {
+    stopTicking();
+    var last = Date.now();
+    tickHandle = setInterval(function () {
+      if (!runState || runState.paused) {
+        last = Date.now();
+        return;
+      }
+      var now = Date.now();
+      var delta = (now - last) / 1000;
+      last = now;
+      tick(delta);
+    }, 200);
+  }
+
+  function stopTicking() {
+    if (tickHandle) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+    }
+  }
+
+  function tick(delta) {
+    if (!runState) return;
+    runState.remaining -= delta;
+    runState.elapsed += delta;
+
+    if (runState.remaining <= 0) {
+      advancePhase();
+      return;
+    }
+
+    updateClock();
+  }
+
+  function advancePhase() {
+    var finishedPhase = runState.timeline[runState.index];
+    runState.index += 1;
+
+    if (runState.index >= runState.timeline.length) {
+      finishWorkout();
+      return;
+    }
+
+    var nextPhase = runState.timeline[runState.index];
+    runState.remaining = nextPhase.duration;
+    updatePhaseUI();
+
+    if (nextPhase.type !== finishedPhase.type) {
+      playCue("transition");
+    } else {
+      playCue("tick");
+    }
+  }
+
+  function skipPhase() {
+    if (!runState) return;
+    advancePhase();
+  }
+
+  function updatePhaseUI() {
+    var phase = runState.timeline[runState.index];
+
+    phasePill.textContent = phase.label;
+    phasePill.className = "phase-pill phase-" + phase.type;
+    runBody.className = "run-body bg-" + phase.type;
+
+    if (phase.type === "work" || phase.type === "rest") {
+      var metaParts = [];
+      if (config.blocks.length > 1) {
+        metaParts.push("Set " + (phase.blockIndex + 1));
+      }
+      metaParts.push("Round " + phase.round + " of " + phase.totalRounds);
+      runMeta.textContent = metaParts.join(" · ");
+    } else {
+      runMeta.textContent = "";
+    }
+
+    var next = runState.timeline[runState.index + 1];
+    nextUp.textContent = next ? "Next: " + next.label : "Last one — finish strong";
+
+    updateClock();
+  }
+
+  function updateClock() {
+    runClock.textContent = formatClock(Math.ceil(runState.remaining));
+    elapsedTimeEl.textContent = formatClock(runState.elapsed);
+    var pct = runState.totalDuration > 0 ? Math.min(100, (runState.elapsed / runState.totalDuration) * 100) : 0;
+    overallProgressFill.style.width = pct + "%";
+  }
+
+  function togglePause() {
+    if (!runState) return;
+    runState.paused = !runState.paused;
+    pauseBtn.textContent = runState.paused ? "Resume" : "Pause";
+    if (runState.paused) {
+      releaseWakeLock();
+    } else {
+      requestWakeLock();
+    }
+  }
+
+  function stopWorkout() {
+    if (!runState) return;
+    var confirmStop = window.confirm("End this run early?");
+    if (!confirmStop) return;
+    cleanupRun();
+    showScreen("setup");
+  }
+
+  function cleanupRun() {
+    stopTicking();
+    releaseWakeLock();
+    runState = null;
+  }
+
+  function finishWorkout() {
+    var summaryElapsed = runState.elapsed;
+    var timeline = runState.timeline;
+    cleanupRun();
+    playCue("done");
+    renderDoneScreen(summaryElapsed, timeline);
+    showScreen("done");
+  }
+
+  pauseBtn.addEventListener("click", togglePause);
+  skipBtn.addEventListener("click", skipPhase);
+  stopBtn.addEventListener("click", stopWorkout);
+
+  // ---------- Done screen ----------
+
+  var doneSubtitle = document.getElementById("doneSubtitle");
+  var doneStats = document.getElementById("doneStats");
+  var newRunBtn = document.getElementById("newRunBtn");
+
+  function renderDoneScreen(elapsedSec, timeline) {
+    doneSubtitle.textContent = "Total time: " + formatClock(elapsedSec, true);
+
+    var workPhases = timeline.filter(function (p) { return p.type === "work"; });
+    var restPhases = timeline.filter(function (p) { return p.type === "rest"; });
+    var warmupPhase = timeline.find(function (p) { return p.type === "warmup"; });
+    var cooldownPhase = timeline.find(function (p) { return p.type === "cooldown"; });
+
+    var workTotal = workPhases.reduce(function (s, p) { return s + p.duration; }, 0);
+    var restTotal = restPhases.reduce(function (s, p) { return s + p.duration; }, 0);
+
+    var rows = [];
+    if (warmupPhase) rows.push(["Warm up", formatClock(warmupPhase.duration, true)]);
+    if (workPhases.length) rows.push(["Work intervals", workPhases.length + " rounds · " + formatClock(workTotal, true)]);
+    if (restPhases.length) rows.push(["Rest", formatClock(restTotal, true)]);
+    if (cooldownPhase) rows.push(["Cool down", formatClock(cooldownPhase.duration, true)]);
+
+    doneStats.innerHTML = "";
+    rows.forEach(function (r) {
+      var div = document.createElement("div");
+      div.className = "summary-row";
+      div.innerHTML = "<span>" + r[0] + "</span><span>" + r[1] + "</span>";
+      doneStats.appendChild(div);
+    });
+  }
+
+  newRunBtn.addEventListener("click", function () {
+    showScreen("setup");
+  });
+
+  startBtn.addEventListener("click", startWorkout);
+
+  // ---------- Audio / haptic cues ----------
+
+  var audioCtx = null;
+
+  function getAudioContext() {
+    if (!audioCtx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    return audioCtx;
+  }
+
+  function beep(freq, durationMs, delayMs) {
+    var ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+    var startTime = ctx.currentTime + (delayMs || 0) / 1000;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + durationMs / 1000);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + durationMs / 1000 + 0.05);
+  }
+
+  function playCue(kind) {
+    try {
+      if (kind === "start") {
+        beep(880, 180, 0);
+        if (navigator.vibrate) navigator.vibrate(120);
+      } else if (kind === "transition") {
+        beep(660, 150, 0);
+        beep(880, 150, 180);
+        if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
+      } else if (kind === "tick") {
+        beep(660, 120, 0);
+        if (navigator.vibrate) navigator.vibrate(80);
+      } else if (kind === "done") {
+        beep(880, 160, 0);
+        beep(988, 160, 200);
+        beep(1175, 240, 400);
+        if (navigator.vibrate) navigator.vibrate([120, 80, 120, 80, 200]);
+      }
+    } catch (e) {
+      /* ignore audio errors (e.g. autoplay restrictions) */
+    }
+  }
+
+  // ---------- Wake Lock ----------
+
+  function requestWakeLock() {
+    if (!("wakeLock" in navigator)) return;
+    navigator.wakeLock
+      .request("screen")
+      .then(function (lock) {
+        wakeLock = lock;
+      })
+      .catch(function () {
+        /* ignore — not critical */
+      });
+  }
+
+  function releaseWakeLock() {
+    if (wakeLock) {
+      wakeLock.release().catch(function () {});
+      wakeLock = null;
+    }
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && runState && !runState.paused) {
+      requestWakeLock();
     }
   });
 
-  const grouped = {};
-  items.forEach((label) => {
-    const cat = categorize(label);
-    grouped[cat] = grouped[cat] || [];
-    grouped[cat].push(label);
-  });
-  return grouped;
-}
+  // ---------- Init ----------
 
-function slug(text) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-function getCheckedMap(weekKey) {
-  return JSON.parse(localStorage.getItem(`wl_grocery_checked_${weekKey}`) || "{}");
-}
-
-function setChecked(weekKey, itemKey, checked) {
-  const map = getCheckedMap(weekKey);
-  if (checked) map[itemKey] = true;
-  else delete map[itemKey];
-  localStorage.setItem(`wl_grocery_checked_${weekKey}`, JSON.stringify(map));
-}
-
-function renderGroceryList() {
-  const weekKey = state.selectedWeek;
-  const grouped = buildGroceryList(weekKey);
-  const checkedMap = getCheckedMap(weekKey);
-  const container = document.getElementById("groceryList");
-
-  container.innerHTML = Object.entries(grouped).map(([cat, items]) => `
-    <div class="grocery-group">
-      <h4>${cat}</h4>
-      ${items.map((item) => {
-        const key = slug(item);
-        const checked = !!checkedMap[key];
-        return `
-          <div class="grocery-item ${checked ? "checked" : ""}" data-key="${key}">
-            <input type="checkbox" id="g-${weekKey}-${key}" ${checked ? "checked" : ""} />
-            <label for="g-${weekKey}-${key}">${item}</label>
-          </div>
-        `;
-      }).join("")}
-    </div>
-  `).join("");
-
-  container.querySelectorAll(".grocery-item input").forEach((cb) => {
-    cb.addEventListener("change", (e) => {
-      const row = e.target.closest(".grocery-item");
-      row.classList.toggle("checked", e.target.checked);
-      setChecked(weekKey, row.dataset.key, e.target.checked);
-    });
-  });
-}
-
-function initGroceryClear() {
-  document.getElementById("clearChecked").addEventListener("click", () => {
-    localStorage.removeItem(`wl_grocery_checked_${state.selectedWeek}`);
-    renderGroceryList();
-  });
-}
-
-/* ---------------------------- PROGRESS TRACKER ---------------------------- */
-
-function getTracker() {
-  return JSON.parse(localStorage.getItem("wl_tracker") || '{"start":null,"entries":[]}');
-}
-
-function saveTracker(t) {
-  localStorage.setItem("wl_tracker", JSON.stringify(t));
-}
-
-function latestWeight(t) {
-  if (t.entries.length === 0) return t.start;
-  const sorted = [...t.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
-  return sorted[sorted.length - 1].weight;
-}
-
-function round1(n) {
-  return Math.round(n * 10) / 10;
-}
-
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function initProgress() {
-  const t = getTracker();
-  if (t.start) showProgressBody(t);
-
-  document.getElementById("setStartBtn").addEventListener("click", () => {
-    const val = parseFloat(document.getElementById("startWeight").value);
-    if (!val || val <= 0) return;
-    const nt = { start: val, entries: [] };
-    saveTracker(nt);
-    showProgressBody(nt);
-    renderDashboard();
-  });
-
-  document.getElementById("logForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const date = document.getElementById("logDate").value;
-    const weight = parseFloat(document.getElementById("logWeight").value);
-    if (!date || !weight) return;
-    const nt = getTracker();
-    nt.entries.push({ date, weight });
-    saveTracker(nt);
-    document.getElementById("logForm").reset();
-    showProgressBody(nt);
-    renderDashboard();
-  });
-
-  document.getElementById("resetTracker").addEventListener("click", () => {
-    if (!confirm("Reset all weight tracking data?")) return;
-    localStorage.removeItem("wl_tracker");
-    document.getElementById("progressBody").style.display = "none";
-    document.getElementById("progressSetup").style.display = "flex";
-    document.getElementById("startWeight").value = "";
-    renderDashboard();
-  });
-}
-
-function showProgressBody(t) {
-  document.getElementById("progressSetup").style.display = "none";
-  document.getElementById("progressBody").style.display = "flex";
-
-  const current = latestWeight(t);
-  const target = round1(t.start - GOAL.targetLossLbs);
-  const pct = clamp(((t.start - current) / GOAL.targetLossLbs) * 100, 0, 100);
-
-  document.getElementById("goalCurrent").textContent = current;
-  document.getElementById("goalTarget").textContent = target;
-  document.getElementById("progressFill").style.width = pct + "%";
-  document.getElementById("progressPct").textContent =
-    pct >= 100 ? "Goal reached! 🎉" : `${round1(pct)}% of the way to −10 lbs`;
-
-  const sorted = [...t.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
-  const tbody = document.querySelector("#logTable tbody");
-  tbody.innerHTML = sorted.map((entry, i) => {
-    const prev = i === 0 ? t.start : sorted[i - 1].weight;
-    const diff = round1(entry.weight - prev);
-    const diffStr = diff === 0 ? "–" : (diff > 0 ? `+${diff}` : `${diff}`);
-    return `
-      <tr>
-        <td>${entry.date}</td>
-        <td>${entry.weight} lbs</td>
-        <td>${diffStr}</td>
-        <td><button data-idx="${i}">Remove</button></td>
-      </tr>
-    `;
-  }).join("");
-
-  tbody.querySelectorAll("button[data-idx]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = parseInt(btn.dataset.idx, 10);
-      const nt = getTracker();
-      const sortedEntries = [...nt.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
-      const target = sortedEntries[idx];
-      nt.entries = nt.entries.filter((e) => !(e.date === target.date && e.weight === target.weight));
-      saveTracker(nt);
-      showProgressBody(nt);
-      renderDashboard();
-    });
-  });
-
-  drawChart(t.start, sorted);
-}
-
-function drawChart(start, sorted) {
-  const canvas = document.getElementById("progressChart");
-  const ctx = canvas.getContext("2d");
-  const w = canvas.width, h = canvas.height, pad = 24;
-  ctx.clearRect(0, 0, w, h);
-
-  const points = [{ label: "Start", weight: start }, ...sorted.map((e) => ({ label: e.date, weight: e.weight }))];
-  const weights = points.map((p) => p.weight);
-  const min = Math.min(...weights) - 1;
-  const max = Math.max(...weights) + 1;
-
-  const x = (i) => pad + (i * (w - 2 * pad)) / Math.max(points.length - 1, 1);
-  const y = (val) => h - pad - ((val - min) / (max - min || 1)) * (h - 2 * pad);
-
-  const styles = getComputedStyle(document.documentElement);
-  ctx.strokeStyle = styles.getPropertyValue("--accent").trim() || "#3f7d4a";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  points.forEach((p, i) => {
-    const px = x(i), py = y(p.weight);
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
-  ctx.stroke();
-
-  ctx.fillStyle = ctx.strokeStyle;
-  points.forEach((p, i) => {
-    ctx.beginPath();
-    ctx.arc(x(i), y(p.weight), 3.5, 0, Math.PI * 2);
-    ctx.fill();
-  });
-}
-
-/* ---------------------------- INIT ---------------------------- */
-
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("logDate").valueAsDate = new Date();
-  initTabs();
-  initWeekSwitch();
-  renderExercise();
-  renderRecipes();
-  renderTips();
-  initGroceryClear();
-  initProgress();
-  renderDashboard();
-});
+  warmupInput.value = String(config.warmupMin);
+  cooldownInput.value = String(config.cooldownMin);
+  renderBlocks();
+  renderSummary();
+  showScreen("setup");
+})();
