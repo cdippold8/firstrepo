@@ -1,7 +1,30 @@
 (function () {
   "use strict";
 
-  var STORAGE_KEY = "intervalRun.config.v1";
+  var STORAGE_KEY = "intervalRun.setup.v2";
+
+  var PHASE_LABEL = {
+    warmup: "WARM UP",
+    fast: "FAST INTERVAL",
+    slow: "SLOW INTERVAL",
+    cooldown: "COOL DOWN",
+  };
+
+  var PHASE_CLASS = {
+    warmup: "phase-warmup",
+    fast: "phase-fast",
+    slow: "phase-slow",
+    cooldown: "phase-cooldown",
+  };
+
+  var PHASE_AUDIO = {
+    warmup: "assets/audio/warmup.mp3",
+    fast: "assets/audio/fast-interval.mp3",
+    slow: "assets/audio/slow-interval.mp3",
+    cooldown: "assets/audio/cooldown.mp3",
+  };
+
+  var WARNING_LEAD_SEC = 10;
 
   var screens = {
     setup: document.getElementById("screen-setup"),
@@ -15,328 +38,178 @@
     });
   }
 
-  // ---------- Setup state ----------
+  // ---------- Setup screen ----------
 
   var warmupInput = document.getElementById("warmupMin");
+  var everyInput = document.getElementById("everyMin");
+  var forInput = document.getElementById("forMin");
   var cooldownInput = document.getElementById("cooldownMin");
-  var blocksList = document.getElementById("blocksList");
-  var addBlockBtn = document.getElementById("addBlockBtn");
-  var summaryBody = document.getElementById("summaryBody");
+  var intervalHint = document.getElementById("intervalHint");
   var startBtn = document.getElementById("startBtn");
+  var clearBtn = document.getElementById("clearBtn");
 
-  var blockIdCounter = 0;
+  function formatMin(m) {
+    var rounded = Math.round(m * 100) / 100;
+    return rounded + " min";
+  }
 
-  function defaultConfig() {
+  function computeConfig() {
+    var warmupMin = parseFloat(warmupInput.value);
+    if (isNaN(warmupMin) || warmupMin < 0) warmupMin = 0;
+
+    var cooldownMin = parseFloat(cooldownInput.value);
+    if (isNaN(cooldownMin) || cooldownMin < 0) cooldownMin = 0;
+
+    var everyMin = parseFloat(everyInput.value);
+    var forMin = parseFloat(forInput.value);
+    var valid = !isNaN(everyMin) && everyMin > 0 && !isNaN(forMin) && forMin > 0;
+
+    var slowMin = valid ? Math.max(0, everyMin - forMin) : 0;
+
     return {
-      warmupMin: 5,
-      cooldownMin: 5,
-      blocks: [{ id: ++blockIdCounter, everyMin: 3, forMin: 1, rounds: 6 }],
+      valid: valid,
+      warmupMin: warmupMin,
+      warmupSec: Math.round(warmupMin * 60),
+      everyMin: valid ? everyMin : 0,
+      forMin: valid ? forMin : 0,
+      forSec: valid ? Math.round(forMin * 60) : 0,
+      slowMin: slowMin,
+      slowSec: Math.round(slowMin * 60),
+      cooldownMin: cooldownMin,
+      cooldownSec: Math.round(cooldownMin * 60),
     };
   }
 
-  var config = loadConfig() || defaultConfig();
-  if (config.blocks && config.blocks.length) {
-    blockIdCounter = Math.max.apply(
-      null,
-      config.blocks.map(function (b) {
-        return b.id;
-      })
-    );
-  }
+  function refreshSetupUI() {
+    var cfg = computeConfig();
+    startBtn.disabled = !cfg.valid;
 
-  function loadConfig() {
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      var parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.blocks)) return null;
-      return parsed;
-    } catch (e) {
-      return null;
+    if (!cfg.valid) {
+      intervalHint.textContent = "Set your fast & slow split";
+    } else if (cfg.forMin >= cfg.everyMin) {
+      intervalHint.textContent = "Fast " + formatMin(cfg.forMin) + " back-to-back — no slow gap";
+    } else {
+      intervalHint.textContent = "Fast " + formatMin(cfg.forMin) + " / Slow " + formatMin(cfg.slowMin) + " each lap";
     }
+
+    saveSetup();
   }
 
-  function saveConfig() {
+  function saveSetup() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          warmupMin: warmupInput.value,
+          everyMin: everyInput.value,
+          forMin: forInput.value,
+          cooldownMin: cooldownInput.value,
+        })
+      );
     } catch (e) {
       /* ignore */
     }
   }
 
-  function renderBlocks() {
-    blocksList.innerHTML = "";
-    config.blocks.forEach(function (block, index) {
-      blocksList.appendChild(renderBlockRow(block, index));
-    });
-    if (config.blocks.length === 0) {
-      var empty = document.createElement("p");
-      empty.className = "muted small-text";
-      empty.textContent = "No intervals yet — add one, or just do a straight warm up + cool down run.";
-      blocksList.appendChild(empty);
+  function loadSetup() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (!parsed) return;
+      warmupInput.value = parsed.warmupMin || "";
+      everyInput.value = parsed.everyMin || "";
+      forInput.value = parsed.forMin || "";
+      cooldownInput.value = parsed.cooldownMin || "";
+    } catch (e) {
+      /* ignore */
     }
   }
 
-  function renderBlockRow(block, index) {
-    var row = document.createElement("div");
-    row.className = "block-row";
-
-    var top = document.createElement("div");
-    top.className = "block-row-top";
-    var label = document.createElement("span");
-    label.className = "block-label";
-    label.textContent = "Interval " + (index + 1);
-    top.appendChild(label);
-
-    if (config.blocks.length > 1) {
-      var removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.className = "block-remove";
-      removeBtn.setAttribute("aria-label", "Remove interval " + (index + 1));
-      removeBtn.textContent = "✕";
-      removeBtn.addEventListener("click", function () {
-        config.blocks = config.blocks.filter(function (b) {
-          return b.id !== block.id;
-        });
-        renderBlocks();
-        renderSummary();
-        saveConfig();
-      });
-      top.appendChild(removeBtn);
-    }
-    row.appendChild(top);
-
-    var fields = document.createElement("div");
-    fields.className = "block-fields";
-
-    fields.appendChild(
-      makeNumberField("Every (min)", block.everyMin, 0.5, function (val) {
-        block.everyMin = val;
-        renderBlockSentence(row, block);
-        renderSummary();
-        saveConfig();
-      })
-    );
-    fields.appendChild(
-      makeNumberField("For (min)", block.forMin, 0.5, function (val) {
-        block.forMin = val;
-        renderBlockSentence(row, block);
-        renderSummary();
-        saveConfig();
-      })
-    );
-    fields.appendChild(
-      makeNumberField("Rounds", block.rounds, 1, function (val) {
-        block.rounds = Math.max(1, Math.round(val));
-        renderBlockSentence(row, block);
-        renderSummary();
-        saveConfig();
-      })
-    );
-
-    row.appendChild(fields);
-
-    var sentence = document.createElement("p");
-    sentence.className = "block-sentence";
-    row.appendChild(sentence);
-    renderBlockSentence(row, block);
-
-    return row;
-  }
-
-  function renderBlockSentence(row, block) {
-    var sentence = row.querySelector(".block-sentence");
-    var rest = Math.max(0, block.everyMin - block.forMin);
-    var text =
-      "Every " +
-      formatMin(block.everyMin) +
-      ", work for " +
-      formatMin(block.forMin) +
-      (rest > 0 ? " (rest " + formatMin(rest) + ")" : " (no rest — back to back)") +
-      ", x " +
-      block.rounds +
-      " rounds";
-    sentence.textContent = text;
-  }
-
-  function formatMin(m) {
-    return m === 1 ? "1 min" : m + " min";
-  }
-
-  function makeNumberField(labelText, value, step, onChange) {
-    var field = document.createElement("label");
-    field.className = "field";
-    var span = document.createElement("span");
-    span.textContent = labelText;
-    var input = document.createElement("input");
-    input.type = "number";
-    input.min = step >= 1 ? "1" : "0.5";
-    input.step = String(step);
-    input.inputMode = "decimal";
-    input.value = String(value);
-    field.appendChild(span);
-    field.appendChild(input);
-
-    input.addEventListener("input", function () {
-      var val = parseFloat(input.value);
-      if (isNaN(val) || val < 0) return;
-      onChange(val);
-    });
-
-    return field;
-  }
-
-  addBlockBtn.addEventListener("click", function () {
-    config.blocks.push({ id: ++blockIdCounter, everyMin: 3, forMin: 1, rounds: 6 });
-    renderBlocks();
-    renderSummary();
-    saveConfig();
+  [warmupInput, everyInput, forInput, cooldownInput].forEach(function (input) {
+    input.addEventListener("input", refreshSetupUI);
   });
 
-  warmupInput.addEventListener("input", function () {
-    var val = parseFloat(warmupInput.value);
-    config.warmupMin = isNaN(val) || val < 0 ? 0 : val;
-    renderSummary();
-    saveConfig();
+  clearBtn.addEventListener("click", function () {
+    warmupInput.value = "";
+    everyInput.value = "";
+    forInput.value = "";
+    cooldownInput.value = "";
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      /* ignore */
+    }
+    refreshSetupUI();
   });
-  cooldownInput.addEventListener("input", function () {
-    var val = parseFloat(cooldownInput.value);
-    config.cooldownMin = isNaN(val) || val < 0 ? 0 : val;
-    renderSummary();
-    saveConfig();
-  });
 
-  function renderSummary() {
-    var timeline = buildTimeline(config);
-    var totalSec = timeline.reduce(function (sum, p) {
-      return sum + p.duration;
-    }, 0);
-
-    var rows = [];
-    if (config.warmupMin > 0) {
-      rows.push(["Warm up", formatMin(config.warmupMin)]);
-    }
-    config.blocks.forEach(function (block, i) {
-      var rest = Math.max(0, block.everyMin - block.forMin);
-      rows.push([
-        "Interval " + (i + 1),
-        block.rounds + " x (" + formatMin(block.forMin) + (rest > 0 ? " work / " + formatMin(rest) + " rest" : " work") + ")",
-      ]);
-    });
-    if (config.cooldownMin > 0) {
-      rows.push(["Cool down", formatMin(config.cooldownMin)]);
-    }
-
-    summaryBody.innerHTML = "";
-    rows.forEach(function (r) {
-      var div = document.createElement("div");
-      div.className = "summary-row";
-      div.innerHTML = "<span>" + r[0] + "</span><span>" + r[1] + "</span>";
-      summaryBody.appendChild(div);
-    });
-    var totalDiv = document.createElement("div");
-    totalDiv.className = "summary-row total";
-    totalDiv.innerHTML = "<span>Total time</span><span>" + formatClock(totalSec, true) + "</span>";
-    summaryBody.appendChild(totalDiv);
-
-    startBtn.disabled = totalSec <= 0;
-  }
-
-  // ---------- Timeline construction ----------
-
-  function buildTimeline(cfg) {
-    var timeline = [];
-    if (cfg.warmupMin > 0) {
-      timeline.push({ type: "warmup", label: "Warm Up", duration: Math.round(cfg.warmupMin * 60) });
-    }
-    cfg.blocks.forEach(function (block, blockIndex) {
-      var rest = Math.max(0, block.everyMin - block.forMin);
-      for (var r = 1; r <= block.rounds; r++) {
-        timeline.push({
-          type: "work",
-          label: "Work",
-          duration: Math.round(block.forMin * 60),
-          blockIndex: blockIndex,
-          round: r,
-          totalRounds: block.rounds,
-        });
-        var isLastRoundOfLastBlock = blockIndex === cfg.blocks.length - 1 && r === block.rounds;
-        if (rest > 0 && !isLastRoundOfLastBlock) {
-          timeline.push({
-            type: "rest",
-            label: "Rest",
-            duration: Math.round(rest * 60),
-            blockIndex: blockIndex,
-            round: r,
-            totalRounds: block.rounds,
-          });
-        }
-      }
-    });
-    if (cfg.cooldownMin > 0) {
-      timeline.push({ type: "cooldown", label: "Cool Down", duration: Math.round(cfg.cooldownMin * 60) });
-    }
-    return timeline.filter(function (p) {
-      return p.duration > 0;
-    });
-  }
-
-  function formatClock(totalSeconds, longForm) {
-    totalSeconds = Math.max(0, Math.round(totalSeconds));
-    var h = Math.floor(totalSeconds / 3600);
-    var m = Math.floor((totalSeconds % 3600) / 60);
-    var s = totalSeconds % 60;
-    if (longForm) {
-      if (h > 0) return h + "h " + m + "m";
-      if (m > 0) return m + "m " + (s > 0 ? s + "s" : "");
-      return s + "s";
-    }
-    if (h > 0) {
-      return h + ":" + pad(m) + ":" + pad(s);
-    }
-    return m + ":" + pad(s);
-  }
+  // ---------- Time formatting ----------
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
   }
 
-  // ---------- Run screen ----------
+  function formatClock(totalSeconds) {
+    totalSeconds = Math.max(0, Math.floor(totalSeconds));
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.floor((totalSeconds % 3600) / 60);
+    var s = totalSeconds % 60;
+    if (h > 0) return h + ":" + pad(m) + ":" + pad(s);
+    return pad(m) + ":" + pad(s);
+  }
 
-  var phasePill = document.getElementById("phasePill");
-  var runClock = document.getElementById("runClock");
-  var runMeta = document.getElementById("runMeta");
-  var nextUp = document.getElementById("nextUp");
-  var runBody = document.querySelector(".run-body");
-  var elapsedTimeEl = document.getElementById("elapsedTime");
-  var overallProgressFill = document.getElementById("overallProgressFill");
-  var pauseBtn = document.getElementById("pauseBtn");
-  var skipBtn = document.getElementById("skipBtn");
+  // ---------- Run state machine ----------
+
+  var totalClock = document.getElementById("totalClock");
+  var phaseLabel = document.getElementById("phaseLabel");
+  var phaseClock = document.getElementById("phaseClock");
+  var getReady = document.getElementById("getReady");
+  var runDisplay = document.getElementById("runDisplay");
+  var fastTallyRun = document.getElementById("fastTallyRun");
+  var slowTallyRun = document.getElementById("slowTallyRun");
   var stopBtn = document.getElementById("stopBtn");
 
   var runState = null;
   var tickHandle = null;
   var wakeLock = null;
 
-  function startWorkout() {
-    var timeline = buildTimeline(config);
-    if (timeline.length === 0) return;
+  function nextPhaseType(current, cfg) {
+    if (current === "warmup") return "fast";
+    if (current === "fast") return cfg.slowSec > 0 ? "slow" : "fast";
+    return "fast"; // from slow
+  }
 
+  function durationFor(type, cfg) {
+    if (type === "warmup") return cfg.warmupSec;
+    if (type === "fast") return cfg.forSec;
+    if (type === "slow") return cfg.slowSec;
+    if (type === "cooldown") return cfg.cooldownSec;
+    return 0;
+  }
+
+  function startRun() {
+    var cfg = computeConfig();
+    if (!cfg.valid) return;
+
+    preloadAudio();
+
+    var initialPhase = cfg.warmupSec > 0 ? "warmup" : "fast";
     runState = {
-      timeline: timeline,
-      index: 0,
-      remaining: timeline[0].duration,
-      totalDuration: timeline.reduce(function (s, p) { return s + p.duration; }, 0),
-      elapsed: 0,
-      paused: false,
-      startedAt: Date.now(),
+      cfg: cfg,
+      phase: initialPhase,
+      phaseElapsed: 0,
+      phaseDuration: durationFor(initialPhase, cfg),
+      totalElapsed: 0,
+      fastCount: 0,
+      slowCount: 0,
+      warned: false,
     };
 
     requestWakeLock();
     showScreen("run");
     updatePhaseUI();
-    pauseBtn.textContent = "Pause";
-    playCue("start");
+    updateTallyUI();
+    playPhaseAudio(initialPhase);
     startTicking();
   }
 
@@ -344,10 +217,6 @@
     stopTicking();
     var last = Date.now();
     tickHandle = setInterval(function () {
-      if (!runState || runState.paused) {
-        last = Date.now();
-        return;
-      }
       var now = Date.now();
       var delta = (now - last) / 1000;
       last = now;
@@ -364,152 +233,141 @@
 
   function tick(delta) {
     if (!runState) return;
-    runState.remaining -= delta;
-    runState.elapsed += delta;
 
-    if (runState.remaining <= 0) {
-      advancePhase();
+    runState.phaseElapsed += delta;
+    runState.totalElapsed += delta;
+
+    var remaining = runState.phaseDuration - runState.phaseElapsed;
+
+    if (
+      runState.phaseDuration > 0 &&
+      !runState.warned &&
+      remaining <= WARNING_LEAD_SEC
+    ) {
+      runState.warned = true;
+      playWarningTone();
+      getReady.classList.add("show");
+    }
+
+    if (runState.phaseDuration > 0 && runState.phaseElapsed >= runState.phaseDuration) {
+      completePhase();
       return;
     }
 
-    updateClock();
+    updateClocks();
   }
 
-  function advancePhase() {
-    var finishedPhase = runState.timeline[runState.index];
-    runState.index += 1;
+  function completePhase() {
+    var finished = runState.phase;
 
-    if (runState.index >= runState.timeline.length) {
-      finishWorkout();
+    if (finished === "cooldown") {
+      finishRun();
       return;
     }
 
-    var nextPhase = runState.timeline[runState.index];
-    runState.remaining = nextPhase.duration;
+    if (finished === "fast") runState.fastCount++;
+    if (finished === "slow") runState.slowCount++;
+
+    var next = nextPhaseType(finished, runState.cfg);
+    transitionTo(next);
+  }
+
+  function transitionTo(type) {
+    runState.phase = type;
+    runState.phaseElapsed = 0;
+    runState.phaseDuration = durationFor(type, runState.cfg);
+    runState.warned = false;
+    getReady.classList.remove("show");
+
     updatePhaseUI();
+    updateTallyUI();
+    playPhaseAudio(type);
 
-    if (nextPhase.type !== finishedPhase.type) {
-      playCue("transition");
-    } else {
-      playCue("tick");
+    if (runState.phaseDuration <= 0) {
+      // zero-length phase (e.g. no cool down) — resolve immediately
+      completePhase();
     }
-  }
-
-  function skipPhase() {
-    if (!runState) return;
-    advancePhase();
   }
 
   function updatePhaseUI() {
-    var phase = runState.timeline[runState.index];
+    phaseLabel.textContent = PHASE_LABEL[runState.phase];
+    runDisplay.className = "run-display " + PHASE_CLASS[runState.phase];
+    updateClocks();
+  }
 
-    phasePill.textContent = phase.label;
-    phasePill.className = "phase-pill phase-" + phase.type;
-    runBody.className = "run-body bg-" + phase.type;
+  function updateClocks() {
+    phaseClock.textContent = formatClock(runState.phaseElapsed);
+    totalClock.textContent = formatClock(runState.totalElapsed);
+  }
 
-    if (phase.type === "work" || phase.type === "rest") {
-      var metaParts = [];
-      if (config.blocks.length > 1) {
-        metaParts.push("Set " + (phase.blockIndex + 1));
-      }
-      metaParts.push("Round " + phase.round + " of " + phase.totalRounds);
-      runMeta.textContent = metaParts.join(" · ");
-    } else {
-      runMeta.textContent = "";
+  function updateTallyUI() {
+    fastTallyRun.textContent = String(runState.fastCount);
+    slowTallyRun.textContent = String(runState.slowCount);
+  }
+
+  function handleStop() {
+    if (!runState) return;
+
+    if (runState.phase === "cooldown") {
+      finishRun();
+      return;
     }
 
-    var next = runState.timeline[runState.index + 1];
-    nextUp.textContent = next ? "Next: " + next.label : "Last one — finish strong";
-
-    updateClock();
-  }
-
-  function updateClock() {
-    runClock.textContent = formatClock(Math.ceil(runState.remaining));
-    elapsedTimeEl.textContent = formatClock(runState.elapsed);
-    var pct = runState.totalDuration > 0 ? Math.min(100, (runState.elapsed / runState.totalDuration) * 100) : 0;
-    overallProgressFill.style.width = pct + "%";
-  }
-
-  function togglePause() {
-    if (!runState) return;
-    runState.paused = !runState.paused;
-    pauseBtn.textContent = runState.paused ? "Resume" : "Pause";
-    if (runState.paused) {
-      releaseWakeLock();
+    if (runState.cfg.cooldownSec > 0) {
+      transitionTo("cooldown");
     } else {
-      requestWakeLock();
+      finishRun();
     }
   }
 
-  function stopWorkout() {
-    if (!runState) return;
-    var confirmStop = window.confirm("End this run early?");
-    if (!confirmStop) return;
-    cleanupRun();
-    showScreen("setup");
-  }
-
-  function cleanupRun() {
+  function finishRun() {
     stopTicking();
     releaseWakeLock();
-    runState = null;
-  }
 
-  function finishWorkout() {
-    var summaryElapsed = runState.elapsed;
-    var timeline = runState.timeline;
-    cleanupRun();
-    playCue("done");
-    renderDoneScreen(summaryElapsed, timeline);
+    var summary = {
+      total: runState.totalElapsed,
+      fast: runState.fastCount,
+      slow: runState.slowCount,
+    };
+    runState = null;
+
+    playDoneFanfare();
+    renderDone(summary);
     showScreen("done");
   }
 
-  pauseBtn.addEventListener("click", togglePause);
-  skipBtn.addEventListener("click", skipPhase);
-  stopBtn.addEventListener("click", stopWorkout);
+  stopBtn.addEventListener("click", handleStop);
+  startBtn.addEventListener("click", startRun);
 
   // ---------- Done screen ----------
 
-  var doneSubtitle = document.getElementById("doneSubtitle");
-  var doneStats = document.getElementById("doneStats");
+  var doneTotalClock = document.getElementById("doneTotalClock");
+  var doneFastCount = document.getElementById("doneFastCount");
+  var doneSlowCount = document.getElementById("doneSlowCount");
   var newRunBtn = document.getElementById("newRunBtn");
+  var newBtnTop = document.getElementById("newBtnTop");
 
-  function renderDoneScreen(elapsedSec, timeline) {
-    doneSubtitle.textContent = "Total time: " + formatClock(elapsedSec, true);
-
-    var workPhases = timeline.filter(function (p) { return p.type === "work"; });
-    var restPhases = timeline.filter(function (p) { return p.type === "rest"; });
-    var warmupPhase = timeline.find(function (p) { return p.type === "warmup"; });
-    var cooldownPhase = timeline.find(function (p) { return p.type === "cooldown"; });
-
-    var workTotal = workPhases.reduce(function (s, p) { return s + p.duration; }, 0);
-    var restTotal = restPhases.reduce(function (s, p) { return s + p.duration; }, 0);
-
-    var rows = [];
-    if (warmupPhase) rows.push(["Warm up", formatClock(warmupPhase.duration, true)]);
-    if (workPhases.length) rows.push(["Work intervals", workPhases.length + " rounds · " + formatClock(workTotal, true)]);
-    if (restPhases.length) rows.push(["Rest", formatClock(restTotal, true)]);
-    if (cooldownPhase) rows.push(["Cool down", formatClock(cooldownPhase.duration, true)]);
-
-    doneStats.innerHTML = "";
-    rows.forEach(function (r) {
-      var div = document.createElement("div");
-      div.className = "summary-row";
-      div.innerHTML = "<span>" + r[0] + "</span><span>" + r[1] + "</span>";
-      doneStats.appendChild(div);
-    });
+  function renderDone(summary) {
+    doneTotalClock.textContent = formatClock(summary.total);
+    doneFastCount.textContent = String(summary.fast);
+    doneSlowCount.textContent = String(summary.slow);
   }
 
-  newRunBtn.addEventListener("click", function () {
+  function goToNewRun() {
     showScreen("setup");
-  });
+    refreshSetupUI();
+  }
 
-  startBtn.addEventListener("click", startWorkout);
+  newRunBtn.addEventListener("click", goToNewRun);
+  newBtnTop.addEventListener("click", goToNewRun);
 
-  // ---------- Audio / haptic cues ----------
+  // ---------- Audio ----------
+  // All cues play through the Web Audio API (never an <audio>/<video> element)
+  // so they mix with — rather than pause or duck — any other app's audio
+  // (e.g. Spotify) on iOS and Android.
 
   var audioCtx = null;
+  var audioBufferCache = {};
 
   function getAudioContext() {
     if (!audioCtx) {
@@ -519,17 +377,69 @@
     return audioCtx;
   }
 
-  function beep(freq, durationMs, delayMs) {
+  function loadBuffer(url) {
+    var ctx = getAudioContext();
+    if (!ctx) return Promise.resolve(null);
+    if (audioBufferCache[url]) return audioBufferCache[url];
+
+    var promise = fetch(url)
+      .then(function (res) {
+        if (!res.ok) throw new Error("fetch failed: " + url);
+        return res.arrayBuffer();
+      })
+      .then(function (arrayBuffer) {
+        return ctx.decodeAudioData(arrayBuffer);
+      })
+      .catch(function (err) {
+        console.warn("Could not load audio cue", url, err);
+        return null;
+      });
+
+    audioBufferCache[url] = promise;
+    return promise;
+  }
+
+  function preloadAudio() {
+    Object.keys(PHASE_AUDIO).forEach(function (key) {
+      loadBuffer(PHASE_AUDIO[key]);
+    });
+  }
+
+  function playBuffer(buffer, volume) {
+    var ctx = getAudioContext();
+    if (!ctx || !buffer) return;
+    var source = ctx.createBufferSource();
+    source.buffer = buffer;
+    var gain = ctx.createGain();
+    gain.gain.value = volume != null ? volume : 0.9;
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(0);
+  }
+
+  function playPhaseAudio(type) {
+    var ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+    var url = PHASE_AUDIO[type];
+    if (!url) return;
+    loadBuffer(url).then(function (buffer) {
+      playBuffer(buffer, 0.9);
+    });
+    if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
+  }
+
+  function beep(freq, durationMs, delayMs, type) {
     var ctx = getAudioContext();
     if (!ctx) return;
     if (ctx.state === "suspended") ctx.resume();
     var startTime = ctx.currentTime + (delayMs || 0) / 1000;
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
-    osc.type = "sine";
+    osc.type = type || "square";
     osc.frequency.value = freq;
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + durationMs / 1000);
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -537,26 +447,26 @@
     osc.stop(startTime + durationMs / 1000 + 0.05);
   }
 
-  function playCue(kind) {
+  function playWarningTone() {
     try {
-      if (kind === "start") {
-        beep(880, 180, 0);
-        if (navigator.vibrate) navigator.vibrate(120);
-      } else if (kind === "transition") {
-        beep(660, 150, 0);
-        beep(880, 150, 180);
-        if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
-      } else if (kind === "tick") {
-        beep(660, 120, 0);
-        if (navigator.vibrate) navigator.vibrate(80);
-      } else if (kind === "done") {
-        beep(880, 160, 0);
-        beep(988, 160, 200);
-        beep(1175, 240, 400);
-        if (navigator.vibrate) navigator.vibrate([120, 80, 120, 80, 200]);
-      }
+      beep(1046, 90, 0);
+      beep(1046, 90, 160);
+      beep(1046, 90, 320);
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60, 40, 60]);
     } catch (e) {
-      /* ignore audio errors (e.g. autoplay restrictions) */
+      /* ignore */
+    }
+  }
+
+  function playDoneFanfare() {
+    try {
+      beep(784, 130, 0);
+      beep(988, 130, 150);
+      beep(1175, 130, 300);
+      beep(1568, 260, 460);
+      if (navigator.vibrate) navigator.vibrate([120, 80, 120, 80, 220]);
+    } catch (e) {
+      /* ignore */
     }
   }
 
@@ -582,16 +492,15 @@
   }
 
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && runState && !runState.paused) {
+    if (document.visibilityState === "visible" && runState) {
       requestWakeLock();
     }
   });
 
   // ---------- Init ----------
 
-  warmupInput.value = String(config.warmupMin);
-  cooldownInput.value = String(config.cooldownMin);
-  renderBlocks();
-  renderSummary();
+  loadSetup();
+  refreshSetupUI();
+  preloadAudio();
   showScreen("setup");
 })();

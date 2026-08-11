@@ -1,24 +1,25 @@
-# Interval Run
+# Intervals
 
-A simple, no-build mobile web app for building and running interval-training runs: set a warm up, a repeating "every X min, work for X min" interval, and a cool down, then run through it with a live countdown timer, audio/vibration cues, and a summary screen at the end.
+A retro, dark-mode-only interval run timer for your phone, styled like an old-school clock radio. No build step, no framework — just static HTML/CSS/JS.
 
 ## Running it
 
-No build step or server required — just open `index.html` in a browser (add it to your phone's home screen for an app-like feel). If your browser blocks local scripts, serve it with any static server, e.g.:
+Serve the folder with any static file server (the app fetches its audio cues, which most browsers block over `file://`):
 
 ```
 python3 -m http.server 8000
 ```
 
-then visit `http://localhost:8000` from your phone (on the same network) or your computer.
+Then open `http://localhost:8000` on your phone and add it to your home screen for an app-like feel.
 
-## What's inside
+## How it works
 
-- **Setup** — set a warm up and cool down (in minutes), then add one or more intervals defined as "every X min, work for X min, for N rounds". The rest time per round is automatically calculated (every − for). A live summary shows the full breakdown and total run time. Your last setup is remembered (`localStorage`).
-- **Run** — a full-screen countdown timer that walks through warm up → each interval's work/rest rounds → cool down, with a color-coded phase pill, overall progress bar, elapsed time, pause/resume, skip, and stop controls. Phase transitions trigger a short tone and vibration (where supported), and the screen is kept awake during the run (where supported) so it won't lock mid-run.
-- **Done** — a completion screen with total time and a breakdown of warm up / work / rest / cool down, plus a button to start another run.
+- **New Run (setup)** — set a warm up (min), a cool down (min), and your interval as "every X min, for X min" (the fast portion; the remainder of each lap is the slow portion). `CLEAR` wipes all four values. `START` is disabled until a valid interval is set. Your last setup is remembered between visits.
+- **On Air (run)** — warm up, then fast/slow laps repeat indefinitely, each shown with its own count-up clock, color-coded (amber warm up, red fast, green slow, blue cool down), plus a running total time and fast/slow lap tally. `STOP` moves straight into the cool down; pressing it again (or once cool down finishes) ends the run.
+- **Done** — total run time and the final fast/slow lap counts, with a button to start another run.
 
-## Notes
+10 seconds before every phase change, a short retro tone (and a vibration, where supported) plays as a heads-up. When a phase actually starts, its matching cue plays: `assets/audio/warmup.mp3`, `fast-interval.mp3`, `slow-interval.mp3`, or `cooldown.mp3`.
 
-- Everything runs client-side; no data is sent anywhere.
-- Audio cues use the Web Audio API and vibration uses the Vibration API — both are best-effort and silently no-op on browsers/devices that don't support them (e.g. iOS Safari does not support vibration).
+All audio (cues and warning tones) plays through the Web Audio API rather than an `<audio>`/`<video>` element, so it mixes with — instead of pausing or ducking — whatever else is playing on your phone, like Spotify.
+
+Everything runs client-side; no data leaves your browser. The screen is kept awake during a run where the Wake Lock API is supported.
