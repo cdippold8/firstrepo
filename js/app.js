@@ -213,11 +213,11 @@ function renderTips() {
 /* ---------------------------- GROCERY LIST ---------------------------- */
 
 const CATEGORIES = [
-  { name: "Produce", keywords: ["zucchini", "corn", "pepper", "tomato", "onion", "garlic", "lemon", "avocado", "spinach", "carrot", "celery", "cucumber", "peach", "berries", "blueberr", "banana", "apple", "orange", "watermelon", "cabbage", "lime", "basil", "parsley", "cilantro", "green bean", "sweet potato", "mushroom", "portobello", "eggplant", "kale"] },
+  { name: "Produce", keywords: ["zucchini", "corn", "pepper", "tomato", "onion", "garlic", "lemon", "avocado", "spinach", "carrot", "celery", "cucumber", "peach", "plum", "fig", "berries", "blueberr", "banana", "apple", "orange", "watermelon", "cabbage", "lime", "basil", "parsley", "cilantro", "arugula", "radish", "green bean", "sweet potato", "mushroom", "portobello", "eggplant", "kale", "lettuce", "romaine"] },
   { name: "Meat & Seafood", keywords: ["turkey", "chicken", "salmon", "shrimp", "cod", "tuna"] },
-  { name: "Eggs & Dairy", keywords: ["egg", "yogurt", "cheese", "feta", "mozzarella", "cottage cheese", "milk", "butter"] },
-  { name: "Grains & Bread", keywords: ["oat", "quinoa", "farro", "rice", "pasta", "tortilla", "bread", "toast"] },
-  { name: "Pantry & Pulses", keywords: ["olive oil", "vinegar", "broth", "beans", "chickpea", "lentil", "hummus", "chili powder", "cumin", "paprika", "honey", "almond butter", "peanut butter", "walnut", "almond", "flaxseed", "chia", "popcorn", "seasoning", "herbs", "oregano", "thyme", "dill"] },
+  { name: "Eggs & Dairy", keywords: ["egg", "yogurt", "cheese", "feta", "mozzarella", "milk", "butter"] },
+  { name: "Grains & Bread", keywords: ["oat", "quinoa", "farro", "rice", "pasta", "tortilla", "bread", "toast", "granola"] },
+  { name: "Pantry & Pulses", keywords: ["olive oil", "vinegar", "broth", "beans", "chickpea", "lentil", "edamame", "hummus", "chili powder", "cumin", "paprika", "honey", "almond butter", "peanut butter", "walnut", "almond", "pistachio", "apricot", "flaxseed", "chia", "popcorn", "seasoning", "herbs", "oregano", "thyme", "dill", "tahini"] },
 ];
 
 function categorize(item) {
